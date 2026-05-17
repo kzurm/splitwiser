@@ -1,0 +1,3344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Splitwiser — homemade Splitwise for two</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ───────────────────────── DESIGN TOKENS ─────────────────────── */
+:root {
+  --font-sans: 'Geist', ui-sans-serif, -apple-system, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --page-bg: #EFEDE8;
+  --bg: #F6F5F2;
+  --surface: #FFFFFF;
+  --surface-2: #F0EEEA;
+  --surface-3: #E8E5DF;
+
+  --ink: #1A1A18;
+  --ink-2: #6B6862;
+  --ink-3: #A8A39B;
+  --ink-4: #C9C5BD;
+
+  --line: rgba(26,26,24,0.07);
+  --line-strong: rgba(26,26,24,0.14);
+
+  --accent: #2D3554;
+  --accent-soft: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  --positive: #1F6B4A;
+  --negative: #B05B2C;
+
+  --row-h: 60px;
+  --card-pad: 20px;
+  --gap: 14px;
+  --num-weight: 500;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-feature-settings: 'ss01', 'cv11';
+  background: var(--page-bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  text-rendering: optimizeLegibility;
+}
+
+button { font-family: inherit; }
+
+/* ───────────────────────── STAGE ─────────────────────────────── */
+.stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow: auto;
+}
+
+/* ───────────────────────── PHONE FRAME ───────────────────────── */
+.phone {
+  width: 393px;
+  height: 852px;
+  border-radius: 50px;
+  background: var(--bg);
+  position: relative;
+  box-shadow:
+    0 0 0 11px #1c1b18,
+    0 0 0 12px #2a2925,
+    0 30px 60px -20px rgba(0,0,0,0.30),
+    0 0 80px -10px rgba(0,0,0,0.12);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.phone-bezel { display:none; }
+.phone-screen {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 50px;
+}
+.phone-home {
+  position: absolute;
+  bottom: 9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 130px;
+  height: 5px;
+  border-radius: 100px;
+  background: rgba(0,0,0,0.22);
+  z-index: 100;
+  pointer-events: none;
+}
+
+.phone-screen::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 118px;
+  height: 34px;
+  border-radius: 22px;
+  background: #000;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.statusbar {
+  height: 54px;
+  padding: 16px 30px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+.statusbar-time {
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  margin-left: 8px;
+}
+.statusbar-right {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-right: 6px;
+}
+
+.screen-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  z-index: 1;
+}
+.screen-area::-webkit-scrollbar { width: 0; }
+
+/* ───────────────────────── HOME / BALANCE ────────────────────── */
+.home-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 20px 14px;
+}
+.home-greeting { display: flex; flex-direction: column; gap: 2px; }
+.home-greeting-eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.home-greeting-people {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.icon-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--ink); }
+.icon-btn:active { background: var(--surface-3); }
+
+.link-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 4px;
+}
+
+.balance-card {
+  margin: 0 16px 20px;
+  background: var(--surface);
+  border-radius: 22px;
+  padding: 22px 22px 18px;
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 1px 2px rgba(0,0,0,0.02);
+}
+.balance-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.balance-label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.balance-toggle {
+  appearance: none;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 0.02em;
+}
+.balance-toggle:hover { background: var(--surface-3); }
+
+.balance-split {
+  display: flex;
+  align-items: stretch;
+  margin: 4px 0 18px;
+}
+.balance-cur {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.balance-cur .money { font-weight: var(--num-weight); letter-spacing: -0.02em; }
+.balance-cur-sub {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.balance-divider {
+  width: 1px;
+  background: var(--line);
+  margin: 4px 18px;
+}
+.balance-combined {
+  margin: 4px 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.balance-stacked {
+  margin: 4px 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.balance-stacked-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.balance-stacked-row .money { font-weight: var(--num-weight); letter-spacing: -0.02em; }
+.balance-stacked-sub {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.balance-combined .money { font-weight: var(--num-weight); letter-spacing: -0.02em; }
+.balance-fx-note {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.balance-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-primary, .btn-secondary {
+  appearance: none;
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.05s, background 0.15s;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  flex: 1;
+}
+.btn-primary:hover { background: color-mix(in oklab, var(--accent) 92%, black); }
+.btn-primary:active { transform: scale(0.985); }
+.btn-primary:disabled { background: var(--ink-4); cursor: not-allowed; }
+.btn-secondary {
+  background: var(--surface-2);
+  color: var(--ink);
+  flex: 1;
+}
+.btn-secondary:hover { background: var(--surface-3); }
+
+.big { padding: 14px 16px; font-size: 15px; }
+
+/* ───────────────────────── FEED ─────────────────────────────── */
+.feed { padding: 0 0 80px; }
+.feed-group { margin-bottom: 4px; }
+.feed-end {
+  text-align: center;
+  padding: 24px 16px 8px;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.day-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 14px 22px 6px;
+}
+.day-header-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.day-header-total {
+  font-size: 11px;
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.day-total-sep { opacity: 0.5; }
+
+.txn-list {
+  margin: 0 16px;
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.txn-list.bare {
+  margin: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.txn-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  min-height: var(--row-h);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.txn-list .txn-row:last-child,
+.txn-list.bare .txn-row { border-bottom: 1px solid var(--line); }
+.txn-list .txn-row:last-child { border-bottom: 0; }
+.txn-row:hover { background: var(--surface-2); }
+.txn-row:active { background: var(--surface-3); }
+
+.txn-mid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.txn-merchant {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.txn-code-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.txn-comment-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.txn-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.txn-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.txn-impact {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.cat-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border-radius: 9px;
+  color: var(--ink-2);
+}
+
+.avatar {
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
+.money {
+  font-family: var(--font-mono);
+  font-weight: var(--num-weight);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.18em;
+  white-space: nowrap;
+}
+.money-sign { font-family: var(--font-sans); margin-right: -0.08em; }
+.money-sym { font-weight: 500; letter-spacing: 0.02em; font-family: var(--font-sans); }
+.money-num { }
+
+/* ───────────────────────── TABBAR ───────────────────────────── */
+.tabbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  padding: 8px 8px 28px;
+  background: rgba(246, 245, 242, 0.86);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-top: 1px solid var(--line);
+  position: relative;
+  z-index: 3;
+}
+.tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px 4px;
+  color: var(--ink-3);
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+  transition: color 0.1s;
+}
+.tab.on { color: var(--accent); }
+.tab:hover { color: var(--ink-2); }
+.tab.on:hover { color: var(--accent); }
+.tab-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.tab-plus { flex: 0 0 56px; padding-top: 2px; }
+.tab-plus-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px -3px color-mix(in oklab, var(--accent) 50%, transparent);
+  transition: transform 0.1s;
+}
+.tab-plus:active .tab-plus-circle { transform: scale(0.95); }
+
+/* ───────────────────────── SCREEN HEADER ─────────────────────── */
+.scr {
+  padding-bottom: 30px;
+  min-height: 100%;
+}
+.scr-head {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px 8px;
+  gap: 8px;
+  min-height: 48px;
+}
+.scr-title {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+.scr-action { min-width: 36px; display: flex; justify-content: flex-end; }
+
+/* ───────────────────────── ADD / FIELDS ──────────────────────── */
+.seg-toggle {
+  display: flex;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+}
+.seg-toggle.three button { flex: 1; }
+.seg-toggle.compact { padding: 2px; }
+.seg-toggle.compact button { padding: 6px 10px; font-size: 12px; }
+.seg-toggle button {
+  flex: 1;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.seg-toggle button.on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
+}
+.seg-toggle button:hover:not(.on) { color: var(--ink); }
+
+.paste-flow {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.paste-instructions {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  padding: 0 4px;
+}
+.paste-area {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink);
+  resize: none;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.paste-area:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 14%, transparent);
+}
+.paste-area::placeholder { color: var(--ink-3); }
+
+.sample-block { display: flex; flex-direction: column; gap: 6px; }
+.sample-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 2px;
+}
+.sample-chip {
+  appearance: none;
+  border: 1px dashed var(--line-strong);
+  background: transparent;
+  border-radius: 10px;
+  padding: 9px 12px;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sample-chip:hover {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+.parsed-preview {
+  background: var(--surface);
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 4px 4px;
+  opacity: 1;
+}
+.parsed-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  gap: 12px;
+}
+.parsed-row:last-child { border-bottom: 0; }
+.parsed-k {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.parsed-v {
+  font-size: 14px;
+  color: var(--ink);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-align: right;
+}
+.parsed-v.mono, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0; }
+.parsed-suggested { color: var(--ink); }
+.parsed-auto {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.paste-cta {
+  margin-top: 4px;
+  display: flex;
+  gap: 8px;
+}
+.paste-cta.two .btn-primary, .paste-cta.two .btn-secondary { flex: 1; }
+
+.review { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 18px; }
+.review-hero {
+  text-align: center;
+  padding: 8px 0 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.review-amount .money { font-weight: 600; letter-spacing: -0.025em; }
+.review-merchant { font-size: 17px; font-weight: 500; color: var(--ink); letter-spacing: -0.01em; white-space: nowrap; }
+.review-date { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+
+.review-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.review-code-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field > label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.field-button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+.field-button:hover { background: var(--surface-2); }
+.field-button > span { flex: 1; }
+.field-chev { color: var(--ink-3); font-size: 18px; line-height: 1; }
+
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.cat-tile {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.cat-tile span {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.cat-tile:hover { background: var(--surface-2); }
+.cat-tile.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.cat-tile.on span { color: var(--accent); }
+.cat-tile.on .cat-icon { background: transparent; color: var(--accent); }
+
+.amount-input {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px;
+}
+.amount-input .seg-toggle { background: transparent; padding: 0; }
+.amount-input .seg-toggle button {
+  background: var(--surface-2); color: var(--ink-2);
+  padding: 8px 12px; min-width: 44px;
+}
+.amount-input .seg-toggle button.on { background: var(--accent); color: white; }
+.amount-field {
+  flex: 1;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--ink);
+  text-align: right;
+  letter-spacing: -0.02em;
+  padding: 0 8px;
+  min-width: 0;
+}
+.amount-field::placeholder { color: var(--ink-4); }
+
+.text-field {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+}
+.text-field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 14%, transparent); }
+.text-field::placeholder { color: var(--ink-3); }
+
+.split-preview { display: flex; flex-direction: column; gap: 0; margin-top: 8px; }
+.split-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  font-size: 13px;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+.split-line:last-child { border-bottom: 0; }
+.split-line .money { margin-left: auto; }
+.split-line > span:first-of-type { flex: 1; }
+
+.split-custom { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.split-row {
+  display: grid;
+  grid-template-columns: 24px 70px 1fr 38px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.split-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.split-bar {
+  height: 4px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.split-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.split-pct {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: right;
+  color: var(--ink);
+}
+
+.manual { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 18px; }
+
+/* ───────────────────────── DETAIL ────────────────────────────── */
+.detail-hero {
+  text-align: center;
+  padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.detail-hero .cat-icon { width: 56px; height: 56px; border-radius: 14px; }
+.detail-merchant { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; }
+.detail-hero .money { font-weight: 600; letter-spacing: -0.025em; }
+.detail-date { font-size: 12px; color: var(--ink-3); }
+
+.detail-card {
+  margin: 0 16px 14px;
+  background: var(--surface);
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  gap: 12px;
+}
+.detail-row:last-child { border-bottom: 0; }
+.detail-row.impact {
+  background: var(--surface-2);
+  font-weight: 500;
+}
+.detail-k {
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.detail-v {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-code {
+  margin: 0 16px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  background: var(--accent-soft);
+  border-radius: 12px;
+  color: var(--accent);
+}
+.detail-code-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.detail-code .mono { font-size: 13px; font-weight: 500; }
+
+.detail-note {
+  margin: 0 16px 16px;
+  padding: 12px 14px;
+  border-left: 2px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 12px 12px 0;
+  font-size: 13px;
+  color: var(--ink);
+  font-style: italic;
+}
+
+.comments {
+  margin: 0 16px;
+  padding: 16px 0 0;
+}
+.comments-head {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 12px;
+}
+.comments-empty {
+  font-size: 13px;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 20px 0;
+}
+.comment {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.comment.mine { flex-direction: row-reverse; }
+.comment-bubble {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.comment.mine .comment-bubble {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.comment-text { font-size: 13px; line-height: 1.45; }
+.comment-time {
+  font-size: 10px;
+  margin-top: 2px;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+.comment.mine .comment-time { color: rgba(255,255,255,0.65); }
+
+.comment-compose {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 6px 6px 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+}
+.comment-input {
+  flex: 1;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 8px 4px;
+  min-width: 0;
+}
+.comment-input::placeholder { color: var(--ink-3); }
+.comment-send {
+  appearance: none;
+  border: 0;
+  background: var(--accent);
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ───────────────────────── SEARCH ────────────────────────────── */
+.search-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--ink-3);
+}
+.search-input input {
+  flex: 1;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  min-width: 0;
+}
+.search-input input::placeholder { color: var(--ink-3); }
+.search-clear {
+  appearance: none;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 11px;
+}
+.search-empty { padding: 0 16px 20px; }
+.search-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.search-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.search-chip {
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.search-chip:hover { background: var(--surface-2); color: var(--ink); }
+.search-results { padding: 0 16px; }
+.search-meta {
+  font-size: 12px;
+  color: var(--ink-2);
+  padding: 0 4px 12px;
+}
+.search-q { color: var(--ink); font-weight: 500; }
+
+/* ───────────────────────── INBOX ─────────────────────────────── */
+.inbox-list { padding: 0 16px 80px; }
+.inbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  border-left: 0; border-right: 0; border-top: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.inbox-row:hover { background: var(--surface-2); }
+.inbox-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
+.inbox-line { font-size: 14px; color: var(--ink); line-height: 1.35; }
+.inbox-line b { font-weight: 600; }
+.inbox-sub { font-size: 12px; color: var(--ink-3); display: inline-flex; gap: 6px; align-items: baseline; }
+.inbox-sub.italic { font-style: italic; color: var(--ink-2); }
+.inbox-time { font-size: 11px; color: var(--ink-3); flex-shrink: 0; padding-top: 4px; }
+.italic { font-style: italic; }
+
+/* ───────────────────────── SETTLE ────────────────────────────── */
+.settle-hero {
+  text-align: center;
+  padding: 16px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.settle-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.settle-hero .money { font-weight: 600; letter-spacing: -0.025em; }
+.settle-direction { font-size: 14px; color: var(--ink-2); }
+.settle-info {
+  margin: 16px 16px 24px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.settle .paste-cta { padding: 0 16px; }
+
+.scr .paste-cta { padding: 0 16px; }
+.scr .review .paste-cta { padding: 0; }
+.paste-flow .paste-cta { padding: 0; }
+.manual .paste-cta { padding: 0; }
+
+/* ───────────────────────── REPORTS ───────────────────────────── */
+.reports .scr-head { padding: 4px 16px 8px; }
+.reports-controls {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin: 0 16px 18px;
+}
+.reports-cur { flex-shrink: 0; }
+.reports-cur button { min-width: 36px; padding: 6px 10px; font-size: 12px; }
+.report-body {
+  padding: 0 16px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.report-card {
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  padding: 18px 18px 16px;
+}
+.report-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  gap: 10px;
+}
+.report-card-head .report-eyebrow,
+.report-card-head .report-trend { white-space: nowrap; }
+.report-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.report-trend {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.report-big {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+.report-big .money { font-weight: 600; letter-spacing: -0.02em; }
+.report-big-sub { font-size: 11px; color: var(--ink-3); font-weight: 500; letter-spacing: 0.02em; }
+.burn-chart { width: 100%; display: block; }
+
+.cat-list { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+.cat-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cat-line-mid { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cat-line-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.cat-line-name { font-size: 14px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat-line-row .money { flex-shrink: 0; }
+.cat-line-bar { height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
+.cat-line-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.cat-line-meta { display: flex; gap: 8px; font-size: 11px; color: var(--ink-3); font-weight: 500; white-space: nowrap; }
+.cat-line-meta > span { white-space: nowrap; }
+.cat-line-meta-new {
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 9px;
+}
+
+.merch-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.merch-row {
+  display: grid;
+  grid-template-columns: 22px 32px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+}
+.merch-row:last-child { border-bottom: 0; }
+.merch-rank {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.merch-mid { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.merch-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.merch-sub { font-size: 11px; color: var(--ink-3); font-weight: 500; }
+.merch-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.merch-count { display: inline-flex; align-items: baseline; gap: 1px; }
+.merch-count-num {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.merch-count-x { font-size: 11px; color: var(--ink-3); }
+.merch-bar {
+  grid-column: 1 / -1;
+  height: 2px;
+  background: var(--surface-2);
+  border-radius: 1px;
+  margin-top: 2px;
+  margin-left: 34px;
+  overflow: hidden;
+}
+.merch-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  opacity: 0.4;
+}
+
+.cal-grid { padding: 8px 0; }
+.cal-dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+  padding: 0 2px;
+}
+.cal-dow span {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  text-align: center;
+}
+.cal-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.cal-day { display: flex; align-items: center; justify-content: center; }
+.cal-cell {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  position: relative;
+}
+.cal-cell.today {
+  outline: 1.5px solid var(--accent);
+  outline-offset: -1.5px;
+}
+.cal-dot {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.cal-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.cal-legend-label {
+  font-size: 10px;
+  color: var(--ink-3);
+  margin: 0 4px;
+  letter-spacing: 0.02em;
+}
+.cal-legend-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.highlight-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+.highlight {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.highlight:first-child { grid-column: 1; }
+.highlight:nth-child(3) { grid-column: 1 / -1; }
+.highlight-num {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.highlight-label {
+  font-size: 11px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.highlight .money { font-weight: 600; }
+
+/* ───────────────────────── SETTINGS ──────────────────────────── */
+.settings-section { padding: 4px 16px 4px; margin-bottom: 18px; }
+.settings-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding: 0 4px 8px;
+}
+.settings-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.settings-row:last-child { border-bottom: 0; }
+.settings-row-mid { display: flex; flex-direction: column; gap: 1px; }
+.settings-row-name { font-size: 14px; font-weight: 500; color: var(--ink); }
+.settings-row-sub { font-size: 11px; color: var(--ink-3); font-weight: 500; letter-spacing: 0.02em; white-space: nowrap; }
+
+.settings-fx { display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+.settings-fx-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.settings-fx-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.fx-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.fx-dot-ok { background: var(--positive); box-shadow: 0 0 0 3px color-mix(in oklab, var(--positive) 18%, transparent); }
+.fx-dot-idle { background: var(--ink-4); }
+.fx-dot-err { background: var(--negative); }
+
+.fx-fetch-btn {
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.fx-fetch-btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--ink-3); }
+.fx-fetch-btn:disabled { cursor: default; }
+.fx-fetch-btn.loading { color: var(--ink-2); }
+.fx-fetch-btn.ok { color: var(--positive); border-color: color-mix(in oklab, var(--positive) 35%, var(--line-strong)); }
+.fx-fetch-btn.err { color: var(--negative); border-color: color-mix(in oklab, var(--negative) 35%, var(--line-strong)); }
+.fx-spin svg { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 14px;
+  border-top: 1px solid var(--line);
+}
+.settings-toggle-mid { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.settings-toggle-name { font-size: 13px; font-weight: 500; color: var(--ink); }
+.settings-toggle-sub { font-size: 11px; color: var(--ink-3); font-weight: 500; line-height: 1.4; }
+
+.switch {
+  appearance: none;
+  border: 0;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--ink-4);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.18s;
+  flex-shrink: 0;
+  padding: 0;
+}
+.switch.on { background: var(--accent); }
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  transition: transform 0.18s ease;
+}
+.switch.on .switch-thumb { transform: translateX(16px); }
+.settings-fx-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.settings-fx-prefix, .settings-fx-suffix {
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 500;
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+.settings-fx-input input {
+  flex: 1;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--ink);
+  text-align: center;
+  min-width: 0;
+  letter-spacing: -0.01em;
+}
+.settings-hint {
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.5;
+  padding: 8px 4px 0;
+  font-weight: 500;
+}
+.settings-hint b { color: var(--ink-2); font-weight: 600; }
+.settings-action-row {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  font-family: inherit;
+  cursor: pointer;
+}
+.settings-action-row:last-child { border-bottom: 0; }
+.settings-action-row:hover { background: var(--surface-2); }
+.settings-action-label { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+.settings-action-meta { font-size: 12px; color: var(--ink-3); font-family: var(--font-mono); white-space: nowrap; }
+.settings-action-row.danger .settings-action-label { color: var(--negative); }
+.settings-footer {
+  text-align: center;
+  padding: 30px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-footer-name { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.settings-footer-version { font-size: 11px; color: var(--ink-3); letter-spacing: 0.02em; }
+
+/* ───────────────────────── DECORATION ────────────────────────── */
+.stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(45, 53, 84, 0.04), transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(176, 91, 44, 0.04), transparent 50%);
+  z-index: 0;
+}
+.stage > * { position: relative; z-index: 1; }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// Splitwiser data layer — Supabase-backed
+// ─────────────────────────────────────────────────────────────
+
+// ▼ paste your Supabase project URL + anon public key here ▼
+const SUPABASE_URL      = 'https://vvvuvxuxxczqdjjctdlf.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_LLXzbePSWMLuClhWu39dQw_2D_0l03j';
+
+const CONFIGURED = !SUPABASE_URL.startsWith('__') && !SUPABASE_ANON_KEY.startsWith('__');
+const sb = CONFIGURED ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+const PEOPLE = {
+  austin: { id: 'austin', name: 'Austin', initial: 'A', color: '#5B6CFF' },
+  kari:   { id: 'kari',   name: 'Kari',   initial: 'K', color: '#D97757' },
+};
+
+// Identity comes from ?me=austin|kari (defaults to austin)
+const ME = (new URLSearchParams(location.search).get('me') === 'kari') ? 'kari' : 'austin';
+
+const CATEGORIES = {
+  groceries:     { label: 'Groceries',     glyph: 'G' },
+  eating_out:    { label: 'Eating out',    glyph: 'E' },
+  transport:     { label: 'Transport',     glyph: 'T' },
+  utilities:     { label: 'Utilities',     glyph: 'U' },
+  rent:          { label: 'Rent',          glyph: 'R' },
+  subscriptions: { label: 'Subscriptions', glyph: 'S' },
+  health:        { label: 'Health',        glyph: 'H' },
+  entertainment: { label: 'Entertainment', glyph: 'P' },
+  shopping:      { label: 'Shopping',      glyph: 'B' },
+  tiger:         { label: 'Tiger',         glyph: 'T' },
+  other:         { label: 'Other',         glyph: 'O' },
+};
+
+const MERCHANT_CATEGORY = {
+  'naivas':'groceries','carrefour':'groceries','quickmart':'groceries','chandarana':'groceries','zucchini':'groceries',
+  'java house':'eating_out','artcaffe':'eating_out',"cj's":'eating_out','mama oliech':'eating_out','inti':'eating_out',
+  'glovo':'eating_out','jumia food':'eating_out',
+  'uber':'transport','bolt':'transport','little':'transport','total':'transport','shell':'transport','rubis':'transport',
+  'kplc':'utilities','kenya power':'utilities','nairobi water':'utilities','zuku':'utilities','safaricom home':'utilities','faiba':'utilities',
+  'netflix':'subscriptions','spotify':'subscriptions','notion':'subscriptions','apple':'subscriptions','icloud':'subscriptions',
+  'goodlife':'health','nairobi hospital':'health','aga khan':'health',
+  'imax':'entertainment','prestige':'entertainment',
+  'westgate':'shopping','sarit':'shopping','jumia':'shopping',
+};
+
+function suggestCategory(merchant) {
+  if (!merchant) return 'other';
+  const m = merchant.toLowerCase();
+  for (const key in MERCHANT_CATEGORY) if (m.includes(key)) return MERCHANT_CATEGORY[key];
+  return 'other';
+}
+
+function parseMpesa(raw) {
+  if (!raw) return null;
+  const text = raw.replace(/\s+/g, ' ').trim();
+  const codeMatch = text.match(/\b([A-Z0-9]{10})\b/);
+  const code = codeMatch ? codeMatch[1] : null;
+  const amtMatch = text.match(/Ksh\s*([\d,]+(?:\.\d{1,2})?)/i);
+  const amount = amtMatch ? parseFloat(amtMatch[1].replace(/,/g, '')) : null;
+
+  let merchant = null;
+  const patterns = [
+    /(?:sent|paid|transferred)\s+to\s+([^.]+?)(?:\s+on|\s+for|\.\s|\s+Account)/i,
+    /to\s+([A-Z][A-Z0-9 &'\-.]+?)\s+on\s+\d/,
+    /You bought Ksh[\d,. ]+ of\s+(airtime)/i,
+    /paybill\s+([^.]+?)(?:\s+Account|\s+on|\.)/i,
+  ];
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m) { merchant = m[1].trim().replace(/\.$/, ''); break; }
+  }
+  if (merchant) {
+    merchant = merchant.replace(/\s+(limited|ltd|kenya|k limited)\.?$/i, '').trim();
+    merchant = merchant.replace(/\b\w+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
+  }
+
+  const dateMatch = text.match(/on\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)/i);
+  let date = null;
+  if (dateMatch) {
+    const [, d, t] = dateMatch;
+    const [day, mon, yr] = d.split('/').map(Number);
+    const year = yr < 100 ? 2000 + yr : yr;
+    const [hm, ampm] = t.split(/\s+/);
+    let [hh, mm] = hm.split(':').map(Number);
+    if (/PM/i.test(ampm) && hh < 12) hh += 12;
+    if (/AM/i.test(ampm) && hh === 12) hh = 0;
+    date = new Date(year, mon - 1, day, hh, mm).toISOString();
+  }
+
+  return { code, amount, merchant, date, currency: 'KSH', category: suggestCategory(merchant), raw };
+}
+
+const SAMPLE_SMS = [
+  "RKE7X8H2KL Confirmed. Ksh1,250.00 sent to NAIVAS LIMITED on 14/5/26 at 7:42 PM. New M-PESA balance is Ksh 18,420.00. Transaction cost, Ksh0.00.",
+  "RKD4P9M3JX Confirmed. Ksh380.00 paid to UBER KENYA LIMITED. on 12/5/26 at 8:01 AM. New M-PESA balance is Ksh 19,800.00.",
+  "RKC2N5Q7BV Confirmed. Ksh4,200.00 sent to JAVA HOUSE on 10/5/26 at 1:14 PM. New M-PESA balance is Ksh 20,180.00.",
+  "RKB9F1Z8WP Confirmed. Ksh12,500.00 paid to KPLC PREPAID. on 5/5/26 at 9:30 AM. New M-PESA balance is Ksh 24,380.00.",
+];
+
+// "Today" used by relative time + calendar — real wall clock now.
+const TODAY = new Date();
+
+// ── Supabase data layer ──────────────────────────────────────
+// Convert a Supabase row → app txn shape (camelCase, splitMode unwrapped).
+function rowToTxn(r) {
+  return {
+    id: r.id,
+    date: r.date,
+    merchant: r.merchant,
+    amount: Number(r.amount),
+    currency: r.currency,
+    paidBy: r.paid_by,
+    splitMode: r.split_mode,
+    category: r.category,
+    note: r.note || undefined,
+    code: r.code || undefined,
+    settled: !!r.settled,
+  };
+}
+
+async function loadTransactions() {
+  if (!sb) return [];
+  const { data, error } = await sb.from('transactions').select('*').order('date', { ascending: false });
+  if (error) { console.error('loadTransactions', error); return []; }
+  return data.map(rowToTxn);
+}
+
+async function loadComments() {
+  if (!sb) return {};
+  const { data, error } = await sb.from('comments').select('*').order('at', { ascending: true });
+  if (error) { console.error('loadComments', error); return {}; }
+  const byTxn = {};
+  for (const c of data) {
+    (byTxn[c.txn_id] = byTxn[c.txn_id] || []).push({ by: c.by_user, at: c.at, text: c.text });
+  }
+  return byTxn;
+}
+
+async function loadSettlements() {
+  if (!sb) return [];
+  const { data, error } = await sb.from('settlements').select('*').order('at', { ascending: false });
+  if (error) { console.error('loadSettlements', error); return []; }
+  return data.map(s => ({ id: s.id, by: s.by_user, at: s.at, amount: Number(s.amount), currency: s.currency, note: s.note || undefined }));
+}
+
+async function insertTransaction(t) {
+  if (!sb) return null;
+  const { data, error } = await sb.from('transactions').insert({
+    date: t.date,
+    merchant: t.merchant,
+    amount: t.amount,
+    currency: t.currency,
+    paid_by: t.paidBy,
+    split_mode: t.splitMode,
+    category: t.category,
+    note: t.note || null,
+    code: t.code || null,
+  }).select().single();
+  if (error) { console.error('insertTransaction', error); return null; }
+  return rowToTxn(data);
+}
+
+async function insertComment(txnId, text) {
+  if (!sb) return null;
+  const { data, error } = await sb.from('comments').insert({
+    txn_id: txnId, by_user: ME, text,
+  }).select().single();
+  if (error) { console.error('insertComment', error); return null; }
+  return { by: data.by_user, at: data.at, text: data.text };
+}
+
+async function insertSettlement(amount, currency, note) {
+  if (!sb) return null;
+  const { data, error } = await sb.from('settlements').insert({
+    by_user: ME, amount, currency, note: note || null,
+  }).select().single();
+  if (error) { console.error('insertSettlement', error); return null; }
+  return data;
+}
+
+// Subscribe to every change on the three tables. Calls onChange() after each.
+function subscribeAll(onChange) {
+  if (!sb) return () => {};
+  const ch = sb.channel('splitwiser-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' },     onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'settlements' },  onChange)
+    .subscribe();
+  return () => sb.removeChannel(ch);
+}
+
+// Derived: turn raw txns/comments/settlements into a unified ACTIVITY feed.
+function deriveActivity(txns, commentsByTxn, settlements) {
+  const out = [];
+  for (const t of txns) {
+    out.push({ id: 'tx-' + t.id, kind: 'expense_added', by: t.paidBy, txnId: t.id, at: t.date });
+  }
+  for (const [txnId, cs] of Object.entries(commentsByTxn)) {
+    for (let i = 0; i < cs.length; i++) {
+      const c = cs[i];
+      out.push({ id: `cm-${txnId}-${i}`, kind: 'comment', by: c.by, txnId, at: c.at, preview: c.text });
+    }
+  }
+  for (const s of settlements) {
+    out.push({ id: 'st-' + s.id, kind: 'settled', by: s.by, at: s.at, amount: s.amount, currency: s.currency, note: s.note });
+  }
+  return out.sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 40);
+}
+
+
+function shareOf(txn, person) {
+  if (txn.splitMode === 'personal') return person === txn.paidBy ? txn.amount : 0;
+  if (txn.splitMode === '50/50')    return txn.amount / 2;
+  if (txn.splitMode && txn.splitMode.kind === 'percent') {
+    return txn.amount * (txn.splitMode[person] / 100);
+  }
+  return 0;
+}
+
+function balances(txns = []) {
+  const out = {};
+  for (const t of txns) {
+    const cur = t.currency;
+    out[cur] = out[cur] || 0;
+    if (t.paidBy === 'austin') out[cur] += shareOf(t, 'kari');
+    else                       out[cur] -= shareOf(t, 'austin');
+  }
+  return out;
+}
+
+function relTime(iso) {
+  const d = new Date(iso);
+  const diff = (TODAY - d) / 1000;
+  if (diff < 3600) return `${Math.max(1, Math.round(diff / 60))}m ago`;
+  if (diff < 86400) return `${Math.round(diff / 3600)}h ago`;
+  const days = Math.round(diff / 86400);
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.round(days / 7)}w ago`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function dayKey(iso) { return iso.slice(0, 10); }
+
+function groupByDay(txns) {
+  const groups = {};
+  for (const t of txns) {
+    const k = dayKey(t.date);
+    (groups[k] = groups[k] || []).push(t);
+  }
+  return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+}
+
+function dayLabel(iso) {
+  const d = new Date(iso);
+  const t = new Date(TODAY); t.setHours(0,0,0,0);
+  const dd = new Date(d); dd.setHours(0,0,0,0);
+  const diff = Math.round((t - dd) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  if (diff < 7) return d.toLocaleDateString('en-US', { weekday: 'long' });
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+</script>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useRef, useContext, createContext } = React;
+
+// Shared live data — App provides, every screen reads via useData().
+const DataCtx = createContext({
+  txns: [], commentsByTxn: {}, settlements: [], activity: [],
+  loaded: false, refresh: () => {},
+});
+const useData = () => useContext(DataCtx);
+
+// ─── Status bar ───────────────────────────────────────────
+function StatusBar() {
+  const c = 'var(--ink)';
+  return (
+    <div className="statusbar">
+      <span className="statusbar-time">9:41</span>
+      <div className="statusbar-right">
+        <svg width="18" height="11" viewBox="0 0 18 11" aria-hidden="true">
+          <rect x="0" y="7" width="3" height="4" rx="0.6" fill={c}/>
+          <rect x="4.5" y="5" width="3" height="6" rx="0.6" fill={c}/>
+          <rect x="9" y="2.5" width="3" height="8.5" rx="0.6" fill={c}/>
+          <rect x="13.5" y="0" width="3" height="11" rx="0.6" fill={c}/>
+        </svg>
+        <svg width="15" height="11" viewBox="0 0 15 11" aria-hidden="true">
+          <path d="M7.5 3c1.9 0 3.7.7 5 2l1-1A8 8 0 007.5 1 8 8 0 002 4l1 1a7 7 0 014.5-2zm0 3a3.5 3.5 0 012.5 1l1-1A5 5 0 007.5 5 5 5 0 004 7l1 1a3.5 3.5 0 012.5-1zm0 2a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" fill={c}/>
+        </svg>
+        <svg width="24" height="11" viewBox="0 0 24 11" aria-hidden="true">
+          <rect x="0.5" y="0.5" width="21" height="10" rx="2.5" stroke={c} strokeOpacity="0.4" fill="none"/>
+          <rect x="2" y="2" width="18" height="7" rx="1.5" fill={c}/>
+          <path d="M22.5 4v3c.6-.2 1-.7 1-1.5s-.4-1.3-1-1.5z" fill={c} fillOpacity="0.5"/>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function PhoneShell({ children }) {
+  return (
+    <div className="phone">
+      <div className="phone-screen">
+        <StatusBar />
+        {children}
+      </div>
+      <div className="phone-home" />
+    </div>
+  );
+}
+
+function Avatar({ person, size = 28 }) {
+  const p = PEOPLE[person];
+  return (
+    <div className="avatar" style={{ width: size, height: size, background: p.color, fontSize: size * 0.42 }}>
+      {p.initial}
+    </div>
+  );
+}
+
+function Money({ amount, currency, size = 17, signed = false, className = '', muted = false, color }) {
+  const sign = signed && amount < 0 ? '−' : (signed && amount > 0 ? '+' : '');
+  const sym = currency === 'KSH' ? 'KSh' : '$';
+  const abs = Math.abs(amount);
+  const decimals = currency === 'USD' ? 2 : (abs % 1 === 0 ? 0 : 2);
+  const formatted = abs.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return (
+    <span className={`money ${className}`} style={{ fontSize: size, color: color || (muted ? 'var(--ink-2)' : 'var(--ink)') }}>
+      <span className="money-sign">{sign}</span>
+      <span className="money-sym" style={{ fontSize: size * 0.62, opacity: 0.6 }}>{sym}</span>
+      <span className="money-num">{formatted}</span>
+    </span>
+  );
+}
+
+function CategoryIcon({ category, size = 36 }) {
+  const PATHS = {
+    groceries:     <><circle cx="9" cy="9" r="3" /><circle cx="15" cy="14" r="2.5" /><path d="M5 19h14" /></>,
+    eating_out:    <><path d="M7 3v8M7 11a3 3 0 003-3V3M17 3l-2 8a2 2 0 002 2v8M7 11v10" /></>,
+    transport:     <><rect x="4" y="7" width="16" height="10" rx="2" /><circle cx="8" cy="17" r="1.5" /><circle cx="16" cy="17" r="1.5" /><path d="M4 12h16" /></>,
+    utilities:     <><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></>,
+    rent:          <><path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1v-9z" /></>,
+    subscriptions: <><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" /></>,
+    health:        <><path d="M12 4v16M4 12h16" strokeWidth="2.5"/></>,
+    entertainment: <><polygon points="9,7 17,12 9,17" /></>,
+    shopping:      <><path d="M5 8h14l-1 12a1 1 0 01-1 1H7a1 1 0 01-1-1L5 8zM9 8V5a3 3 0 016 0v3" /></>,
+    tiger:         <><ellipse cx="12" cy="15" rx="3.5" ry="3" /><circle cx="7.5" cy="10.5" r="1.8" /><circle cx="11" cy="8.5" r="1.8" /><circle cx="13" cy="8.5" r="1.8" /><circle cx="16.5" cy="10.5" r="1.8" /></>,
+    other:         <><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="6" cy="12" r="1.5" fill="currentColor"/><circle cx="18" cy="12" r="1.5" fill="currentColor"/></>,
+  };
+  return (
+    <div className="cat-icon" style={{ width: size, height: size }}>
+      <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        {PATHS[category] || PATHS.other}
+      </svg>
+    </div>
+  );
+}
+
+function TabBar({ active, onChange }) {
+  const tabs = [
+    { id: 'home',    label: 'Home',    icon: <path d="M3 11l9-8 9 8v10a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1V11z" /> },
+    { id: 'reports', label: 'Reports', icon: <><rect x="3" y="13" width="4" height="8" /><rect x="10" y="8" width="4" height="13" /><rect x="17" y="3" width="4" height="18" /></> },
+    { id: 'add',     label: 'Add',     icon: 'plus' },
+    { id: 'search',  label: 'Search',  icon: <><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.5-4.5" /></> },
+    { id: 'inbox',   label: 'Inbox',   icon: <><path d="M3 5h18v9h-6l-1 2h-4l-1-2H3V5zM3 14v5a1 1 0 001 1h16a1 1 0 001-1v-5" /></> },
+  ];
+  return (
+    <div className="tabbar">
+      {tabs.map(t => {
+        const isPlus = t.icon === 'plus';
+        const on = active === t.id;
+        return (
+          <button key={t.id} className={`tab ${on ? 'on' : ''} ${isPlus ? 'tab-plus' : ''}`} onClick={() => onChange(t.id)}>
+            {isPlus ? (
+              <div className="tab-plus-circle">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </div>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                {t.icon}
+              </svg>
+            )}
+            {!isPlus && <span className="tab-label">{t.label}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function describeSplit(t) {
+  if (t.splitMode === '50/50') return '50/50';
+  if (t.splitMode === 'personal') return 'personal';
+  if (t.splitMode && t.splitMode.kind === 'percent') return `${t.splitMode.austin}/${t.splitMode.kari}`;
+  return '';
+}
+
+function TxnRow({ t, onClick, showDate = false }) {
+  const { commentsByTxn } = useData();
+  const yourShare = shareOf(t, ME);
+  const otherPaid = t.paidBy !== ME;
+  const yourImpact = otherPaid ? -yourShare : (t.amount - yourShare);
+  const isPersonal = t.splitMode === 'personal';
+
+  let sublabel;
+  if (isPersonal) sublabel = `${PEOPLE[t.paidBy].name} · personal`;
+  else if (t.paidBy === ME) sublabel = `You paid · ${describeSplit(t)}`;
+  else sublabel = `${PEOPLE[t.paidBy].name} paid · ${describeSplit(t)}`;
+
+  const cs = commentsByTxn[t.id];
+  return (
+    <button className="txn-row" onClick={onClick}>
+      <CategoryIcon category={t.category} size={36} />
+      <div className="txn-mid">
+        <div className="txn-merchant">
+          {t.merchant}
+          {t.code && <span className="txn-code-chip" title={t.code}>M</span>}
+          {cs && cs.length > 0 && (
+            <span className="txn-comment-chip">{cs.length}</span>
+          )}
+        </div>
+        <div className="txn-sub">{sublabel}{showDate ? ` · ${relTime(t.date)}` : ''}</div>
+      </div>
+      <div className="txn-right">
+        <Money amount={t.amount} currency={t.currency} size={15} muted />
+        {!isPersonal && (
+          <span className="txn-impact">
+            <Money amount={yourImpact} currency={t.currency} size={12} signed
+              color={yourImpact > 0 ? 'var(--positive)' : 'var(--negative)'} />
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function ScreenHeader({ title, onBack, action }) {
+  return (
+    <div className="scr-head">
+      {onBack ? (
+        <button className="icon-btn" onClick={onBack} aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 6l-6 6 6 6" />
+          </svg>
+        </button>
+      ) : <div style={{ width: 36 }} />}
+      <h1 className="scr-title">{title}</h1>
+      <div className="scr-action">{action}</div>
+    </div>
+  );
+}
+
+// ─── Home screen ──────────────────────────────────────────
+function HomeScreen({ onOpenTxn, onSettleUp, onAddExpense, onOpenSettings, fxRate, showCombined, onToggleCombined }) {
+  const { txns } = useData();
+  const bals = useMemo(() => balances(txns), [txns]);
+  const groups = useMemo(() => groupByDay(txns).slice(0, 8), [txns]);
+
+  const ksh = bals.KSH || 0;
+  const usd = bals.USD || 0;
+  const combinedKsh = ksh + usd * fxRate;
+  const allZero = Math.abs(ksh) < 0.01 && Math.abs(usd) < 0.01;
+  const headline = allZero ? 'all settled' : (ksh + usd > 0 ? 'Kari owes you' : 'You owe Kari');
+
+  return (
+    <>
+      <div className="home-head">
+        <div className="home-greeting">
+          <span className="home-greeting-eyebrow">Splitwiser</span>
+          <span className="home-greeting-people">Kari &amp; Austin</span>
+        </div>
+        <button className="icon-btn" aria-label="Settings" onClick={onOpenSettings}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="balance-card">
+        <div className="balance-headline">
+          <span className="balance-label">{headline}</span>
+          <button className="balance-toggle" onClick={onToggleCombined}>
+            {showCombined ? 'split' : 'combined'}
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.4">
+              <path d="M2 4l3 3 3-3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {showCombined ? (
+          <div className="balance-combined">
+            <Money amount={combinedKsh} currency="KSH" size={48}
+              color={combinedKsh >= 0 ? 'var(--positive)' : 'var(--negative)'} />
+            <div className="balance-fx-note">at 1 USD = KSh {fxRate}</div>
+          </div>
+        ) : (
+          <div className="balance-split">
+            <div className="balance-cur">
+              <Money amount={ksh} currency="KSH" size={30}
+                color={ksh >= 0 ? 'var(--positive)' : 'var(--negative)'} />
+              <div className="balance-cur-sub">{ksh > 0 ? 'in your favor' : ksh < 0 ? 'you owe' : 'settled'}</div>
+            </div>
+            <div className="balance-divider" />
+            <div className="balance-cur">
+              <Money amount={usd} currency="USD" size={30}
+                color={usd >= 0 ? 'var(--positive)' : 'var(--negative)'} />
+              <div className="balance-cur-sub">{usd > 0 ? 'in your favor' : usd < 0 ? 'you owe' : 'settled'}</div>
+            </div>
+          </div>
+        )}
+
+        <div className="balance-actions">
+          <button className="btn-secondary" onClick={onSettleUp}>Settle up</button>
+          <button className="btn-primary" onClick={onAddExpense}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Add expense
+          </button>
+        </div>
+      </div>
+
+      <div className="feed">
+        {groups.map(([day, txns]) => {
+          const byCur = {};
+          for (const t of txns) byCur[t.currency] = (byCur[t.currency] || 0) + t.amount;
+          const curs = Object.keys(byCur);
+          return (
+            <div key={day} className="feed-group">
+              <div className="day-header">
+                <span className="day-header-label">{dayLabel(day + 'T12:00:00')}</span>
+                <span className="day-header-total">
+                  {curs.map((c, i) => (
+                    <React.Fragment key={c}>
+                      {i > 0 && <span className="day-total-sep">·</span>}
+                      <Money amount={byCur[c]} currency={c} size={12} muted />
+                    </React.Fragment>
+                  ))}
+                </span>
+              </div>
+              <div className="txn-list">
+                {txns.map(t => <TxnRow key={t.id} t={t} onClick={() => onOpenTxn(t.id)} />)}
+              </div>
+            </div>
+          );
+        })}
+        <div className="feed-end">— end of recent activity —</div>
+      </div>
+    </>
+  );
+}
+
+// ─── Add expense ──────────────────────────────────────────
+function SplitPicker({ value, onChange, amount, currency, paidBy }) {
+  const opts = [
+    { id: '50/50',    label: '50 / 50' },
+    { id: 'personal', label: 'Personal' },
+    { id: 'custom',   label: 'Custom %' },
+  ];
+  const [pct, setPct] = useState({ austin: 60, kari: 40 });
+  const isCustom = typeof value === 'object' && value && value.kind === 'percent';
+
+  return (
+    <div>
+      <div className="seg-toggle three">
+        {opts.map(o => {
+          const active = (o.id === 'custom') ? isCustom : value === o.id;
+          return (
+            <button key={o.id} className={active ? 'on' : ''}
+              onClick={() => o.id === 'custom' ? onChange({ kind: 'percent', ...pct }) : onChange(o.id)}>
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {value === '50/50' && (
+        <div className="split-preview">
+          <div className="split-line">
+            <Avatar person="austin" size={20} /><span>Austin</span>
+            <Money amount={amount / 2} currency={currency} size={13} muted />
+          </div>
+          <div className="split-line">
+            <Avatar person="kari" size={20} /><span>Kari</span>
+            <Money amount={amount / 2} currency={currency} size={13} muted />
+          </div>
+        </div>
+      )}
+      {value === 'personal' && (
+        <div className="split-preview">
+          <div className="split-line">
+            <Avatar person={paidBy} size={20} />
+            <span>{PEOPLE[paidBy].name} pays the whole thing — not split</span>
+          </div>
+        </div>
+      )}
+      {isCustom && (
+        <div className="split-custom">
+          <div className="split-row">
+            <Avatar person="austin" size={20} /><span>Austin</span>
+            <input type="range" min="0" max="100" value={pct.austin}
+              onChange={(e) => {
+                const a = parseInt(e.target.value);
+                const next = { austin: a, kari: 100 - a };
+                setPct(next);
+                onChange({ kind: 'percent', ...next });
+              }} />
+            <span className="split-pct">{pct.austin}%</span>
+          </div>
+          <div className="split-row">
+            <Avatar person="kari" size={20} /><span>Kari</span>
+            <span className="split-bar"><span className="split-bar-fill" style={{ width: `${pct.kari}%` }} /></span>
+            <span className="split-pct">{pct.kari}%</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManualEntry({ m, setM, onSave }) {
+  const set = (k, v) => setM(prev => ({ ...prev, [k]: v }));
+  return (
+    <div className="manual">
+      <div className="field">
+        <label>Amount</label>
+        <div className="amount-input">
+          <div className="seg-toggle compact">
+            <button className={m.currency === 'KSH' ? 'on' : ''} onClick={() => set('currency', 'KSH')}>KSh</button>
+            <button className={m.currency === 'USD' ? 'on' : ''} onClick={() => set('currency', 'USD')}>$</button>
+          </div>
+          <input type="text" inputMode="decimal" placeholder="0" value={m.amount}
+            onChange={(e) => set('amount', e.target.value.replace(/[^\d.]/g, ''))} className="amount-field" />
+        </div>
+      </div>
+
+      <div className="field">
+        <label>Merchant or description</label>
+        <input type="text" placeholder="e.g. Naivas, Friday brunch" value={m.merchant}
+          onChange={(e) => set('merchant', e.target.value)} className="text-field" />
+      </div>
+
+      <div className="field">
+        <label>Category</label>
+        <div className="cat-grid">
+          {Object.entries(CATEGORIES).map(([k, c]) => (
+            <button key={k} className={`cat-tile ${k === m.category ? 'on' : ''}`} onClick={() => set('category', k)}>
+              <CategoryIcon category={k} size={26} />
+              <span>{c.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="field">
+        <label>Paid by</label>
+        <div className="seg-toggle">
+          <button className={m.paidBy === 'austin' ? 'on' : ''} onClick={() => set('paidBy', 'austin')}>
+            <Avatar person="austin" size={18} /> Austin
+          </button>
+          <button className={m.paidBy === 'kari' ? 'on' : ''} onClick={() => set('paidBy', 'kari')}>
+            <Avatar person="kari" size={18} /> Kari
+          </button>
+        </div>
+      </div>
+
+      <div className="field">
+        <label>Split</label>
+        <SplitPicker value={m.splitMode} onChange={(v) => set('splitMode', v)}
+          amount={parseFloat(m.amount) || 0} currency={m.currency} paidBy={m.paidBy} />
+      </div>
+
+      <div className="field">
+        <label>Note (optional)</label>
+        <input type="text" placeholder="Anything to remember?" value={m.note}
+          onChange={(e) => set('note', e.target.value)} className="text-field" />
+      </div>
+
+      <div className="paste-cta">
+        <button className="btn-primary big" disabled={!m.amount || !m.merchant} onClick={onSave}>
+          Add expense
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ReviewExpense({ merchant, amount, currency, category, onCategoryChange, split, onSplitChange, code, date, paidBy, onPaidByChange, onBack, onSave }) {
+  const [showCatPicker, setShowCatPicker] = useState(false);
+  const setPaidBy = onPaidByChange;
+  return (
+    <div className="review">
+      <div className="review-hero">
+        <div className="review-amount"><Money amount={amount} currency={currency} size={48} /></div>
+        <div className="review-merchant">{merchant}</div>
+        {date && <div className="review-date">{new Date(date).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>}
+      </div>
+
+      <div className="field">
+        <label>Category</label>
+        <button className="field-button" onClick={() => setShowCatPicker(p => !p)}>
+          <CategoryIcon category={category} size={28} />
+          <span>{CATEGORIES[category].label}</span>
+          <span className="field-chev">›</span>
+        </button>
+        {showCatPicker && (
+          <div className="cat-grid">
+            {Object.entries(CATEGORIES).map(([k, c]) => (
+              <button key={k} className={`cat-tile ${k === category ? 'on' : ''}`}
+                onClick={() => { onCategoryChange(k); setShowCatPicker(false); }}>
+                <CategoryIcon category={k} size={26} />
+                <span>{c.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="field">
+        <label>Paid by</label>
+        <div className="seg-toggle">
+          <button className={paidBy === 'austin' ? 'on' : ''} onClick={() => setPaidBy('austin')}>
+            <Avatar person="austin" size={18} /> Austin
+          </button>
+          <button className={paidBy === 'kari' ? 'on' : ''} onClick={() => setPaidBy('kari')}>
+            <Avatar person="kari" size={18} /> Kari
+          </button>
+        </div>
+      </div>
+
+      <div className="field">
+        <label>Split</label>
+        <SplitPicker value={split} onChange={onSplitChange} amount={amount} currency={currency} paidBy={paidBy} />
+      </div>
+
+      {code && (
+        <div className="review-code">
+          <span className="review-code-label">M-Pesa code</span>
+          <span className="mono">{code}</span>
+        </div>
+      )}
+
+      <div className="paste-cta two">
+        <button className="btn-secondary big" onClick={onBack}>Back</button>
+        <button className="btn-primary big" onClick={onSave}>Add expense</button>
+      </div>
+    </div>
+  );
+}
+
+function AddScreen({ onClose }) {
+  const { refresh } = useData();
+  const [mode, setMode] = useState('manual');
+  const [pasted, setPasted] = useState('');
+  const parsed = useMemo(() => pasted ? parseMpesa(pasted) : null, [pasted]);
+  const [split, setSplit] = useState('50/50');
+  const [pastePaidBy, setPastePaidBy] = useState(ME);
+  const [category, setCategory] = useState(null);
+  const [step, setStep] = useState('paste');
+  const effectiveCategory = category || (parsed && parsed.category) || 'other';
+
+  const [m, setM] = useState({
+    amount: '', currency: 'KSH', merchant: '', paidBy: ME,
+    splitMode: '50/50', category: 'groceries', note: '',
+  });
+
+  const saveManual = async () => {
+    const amount = parseFloat(m.amount);
+    if (!amount || !m.merchant) return;
+    await insertTransaction({
+      date: new Date().toISOString(),
+      merchant: m.merchant,
+      amount,
+      currency: m.currency,
+      paidBy: m.paidBy,
+      splitMode: m.splitMode,
+      category: m.category,
+      note: m.note || null,
+    });
+    refresh();
+    onClose();
+  };
+
+  const savePaste = async () => {
+    if (!parsed || !parsed.amount) return;
+    await insertTransaction({
+      date: parsed.date || new Date().toISOString(),
+      merchant: parsed.merchant || 'Unknown merchant',
+      amount: parsed.amount,
+      currency: parsed.currency || 'KSH',
+      paidBy: pastePaidBy,
+      splitMode: split,
+      category: effectiveCategory,
+      code: parsed.code || null,
+    });
+    refresh();
+    onClose();
+  };
+
+  const tryParse = () => { if (parsed && parsed.amount) setStep('review'); };
+
+  return (
+    <div className="scr">
+      <ScreenHeader title="Add expense" onBack={onClose} />
+
+      <div className="seg-toggle" style={{ margin: '0 16px 16px' }}>
+        <button className={mode === 'manual' ? 'on' : ''} onClick={() => setMode('manual')}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 20h16M14 6l4 4-8 8H6v-4l8-8z" />
+          </svg>
+          Manual
+        </button>
+        <button className={mode === 'paste' ? 'on' : ''} onClick={() => setMode('paste')}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 5h6v2H9zM5 7h4v0a2 2 0 002-2h2a2 2 0 002 2v0h4v14H5V7z" />
+          </svg>
+          Paste M-Pesa
+        </button>
+      </div>
+
+      {mode === 'paste' && step === 'paste' && (
+        <div className="paste-flow">
+          <div className="paste-instructions">
+            Long-press the M-Pesa SMS, copy, paste below. The app pulls out amount, merchant, code, and date automatically.
+          </div>
+          <textarea className="paste-area" placeholder="Paste your M-Pesa confirmation here…"
+            value={pasted} onChange={(e) => setPasted(e.target.value)} rows={6} />
+
+          {!pasted && (
+            <div className="sample-block">
+              <div className="sample-label">Try a sample</div>
+              {SAMPLE_SMS.map((s, i) => (
+                <button key={i} className="sample-chip" onClick={() => setPasted(s)}>{s.slice(0, 64)}…</button>
+              ))}
+            </div>
+          )}
+
+          {parsed && parsed.amount && (
+            <div className="parsed-preview">
+              <div className="parsed-row"><span className="parsed-k">Amount</span><Money amount={parsed.amount} currency="KSH" size={17} /></div>
+              {parsed.merchant && <div className="parsed-row"><span className="parsed-k">Merchant</span><span className="parsed-v">{parsed.merchant}</span></div>}
+              {parsed.code && <div className="parsed-row"><span className="parsed-k">Code</span><span className="parsed-v mono">{parsed.code}</span></div>}
+              {parsed.date && <div className="parsed-row"><span className="parsed-k">Date</span><span className="parsed-v">{new Date(parsed.date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span></div>}
+              <div className="parsed-row"><span className="parsed-k">Category</span>
+                <span className="parsed-v parsed-suggested">
+                  <CategoryIcon category={effectiveCategory} size={20} />
+                  {CATEGORIES[effectiveCategory].label}
+                  <span className="parsed-auto">auto</span>
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="paste-cta">
+            <button className="btn-primary big" disabled={!parsed || !parsed.amount} onClick={tryParse}>Continue</button>
+          </div>
+        </div>
+      )}
+
+      {mode === 'paste' && step === 'review' && parsed && (
+        <ReviewExpense merchant={parsed.merchant || 'Unknown merchant'} amount={parsed.amount}
+          currency={parsed.currency || 'KSH'} category={effectiveCategory} onCategoryChange={setCategory}
+          split={split} onSplitChange={setSplit} code={parsed.code} date={parsed.date}
+          paidBy={pastePaidBy} onPaidByChange={setPastePaidBy}
+          onBack={() => setStep('paste')} onSave={savePaste} />
+      )}
+
+      {mode === 'manual' && <ManualEntry m={m} setM={setM} onSave={saveManual} />}
+    </div>
+  );
+}
+
+// ─── Detail ───────────────────────────────────────────────
+function DetailScreen({ txnId, onBack }) {
+  const { txns, commentsByTxn, refresh } = useData();
+  const [draft, setDraft] = useState('');
+  const [posting, setPosting] = useState(false);
+  const t = txns.find(x => x.id === txnId);
+  if (!t) return null;
+  const comments = commentsByTxn[t.id] || [];
+  const yourShare = shareOf(t, ME);
+  const yourImpact = t.paidBy === ME ? (t.amount - yourShare) : -yourShare;
+
+  const send = async () => {
+    if (!draft.trim() || posting) return;
+    setPosting(true);
+    await insertComment(t.id, draft.trim());
+    setDraft('');
+    setPosting(false);
+    refresh();
+  };
+
+  return (
+    <div className="scr">
+      <ScreenHeader title="" onBack={onBack} action={<button className="link-btn">Edit</button>} />
+
+      <div className="detail-hero">
+        <CategoryIcon category={t.category} size={56} />
+        <div className="detail-merchant">{t.merchant}</div>
+        <Money amount={t.amount} currency={t.currency} size={48} />
+        <div className="detail-date">{new Date(t.date).toLocaleString('en-US', { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+      </div>
+
+      <div className="detail-card">
+        <div className="detail-row">
+          <span className="detail-k">Paid by</span>
+          <span className="detail-v"><Avatar person={t.paidBy} size={20} /> {PEOPLE[t.paidBy].name}</span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-k">Split</span>
+          <span className="detail-v">{describeSplit(t)}</span>
+        </div>
+        {t.splitMode !== 'personal' && (
+          <>
+            <div className="detail-row">
+              <span className="detail-k">Austin's share</span>
+              <Money amount={shareOf(t, 'austin')} currency={t.currency} size={14} muted />
+            </div>
+            <div className="detail-row">
+              <span className="detail-k">Kari's share</span>
+              <Money amount={shareOf(t, 'kari')} currency={t.currency} size={14} muted />
+            </div>
+          </>
+        )}
+        <div className="detail-row impact">
+          <span className="detail-k">Your impact</span>
+          <Money amount={yourImpact} currency={t.currency} size={15} signed
+            color={yourImpact > 0 ? 'var(--positive)' : yourImpact < 0 ? 'var(--negative)' : 'var(--ink-2)'} />
+        </div>
+      </div>
+
+      {t.code && (
+        <div className="detail-code">
+          <span className="detail-code-label">From M-Pesa</span>
+          <span className="mono">{t.code}</span>
+        </div>
+      )}
+
+      {t.note && <div className="detail-note">{t.note}</div>}
+
+      <div className="comments">
+        <div className="comments-head">Notes</div>
+        {comments.length === 0 && <div className="comments-empty">No notes yet. Say something.</div>}
+        {comments.map((c, i) => (
+          <div key={i} className={`comment ${c.by === ME ? 'mine' : 'theirs'}`}>
+            <Avatar person={c.by} size={24} />
+            <div className="comment-bubble">
+              <div className="comment-text">{c.text}</div>
+              <div className="comment-time">{relTime(c.at)}</div>
+            </div>
+          </div>
+        ))}
+        <div className="comment-compose">
+          <Avatar person={ME} size={24} />
+          <input
+            className="comment-input"
+            placeholder={`Reply to ${PEOPLE[t.paidBy === ME ? (ME === 'austin' ? 'kari' : 'austin') : t.paidBy].name}…`}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && send()}
+          />
+          <button className="comment-send" onClick={send} disabled={!draft.trim() || posting}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Search ───────────────────────────────────────────────
+function SearchScreen({ onOpenTxn }) {
+  const { txns } = useData();
+  const [q, setQ] = useState('');
+  const results = useMemo(() => {
+    if (!q.trim()) return [];
+    const lower = q.toLowerCase();
+    return txns.filter(t =>
+      t.merchant.toLowerCase().includes(lower) ||
+      (t.note || '').toLowerCase().includes(lower) ||
+      (CATEGORIES[t.category]?.label || '').toLowerCase().includes(lower) ||
+      (t.code || '').toLowerCase().includes(lower)
+    );
+  }, [q, txns]);
+  const suggestions = ['Naivas', 'Java House', 'Uber', 'rent', 'eating'];
+
+  return (
+    <div className="scr">
+      <div className="scr-head">
+        <div style={{ width: 36 }} />
+        <h1 className="scr-title">Search</h1>
+        <div className="scr-action" />
+      </div>
+      <div style={{ padding: '0 16px 12px' }}>
+        <div className="search-input">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.5-4.5" />
+          </svg>
+          <input autoFocus placeholder="merchant, note, category, M-Pesa code…" value={q} onChange={(e) => setQ(e.target.value)} />
+          {q && <button className="search-clear" onClick={() => setQ('')}>✕</button>}
+        </div>
+      </div>
+
+      {!q && (
+        <div className="search-empty">
+          <div className="search-eyebrow">Try searching</div>
+          <div className="search-chips">
+            {suggestions.map(s => <button key={s} className="search-chip" onClick={() => setQ(s)}>{s}</button>)}
+          </div>
+        </div>
+      )}
+
+      {q && (
+        <div className="search-results">
+          <div className="search-meta">
+            {results.length} {results.length === 1 ? 'result' : 'results'} for "<span className="search-q">{q}</span>"
+          </div>
+          {results.length === 0 && <div className="search-empty"><div className="search-eyebrow">No matches.</div></div>}
+          {results.length > 0 && (
+            <div className="txn-list bare">
+              {results.map(t => <TxnRow key={t.id} t={t} onClick={() => onOpenTxn(t.id)} showDate />)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Inbox ────────────────────────────────────────────────
+function InboxScreen({ onOpenTxn }) {
+  const { activity, txns } = useData();
+  return (
+    <div className="scr">
+      <div className="scr-head">
+        <div style={{ width: 36 }} />
+        <h1 className="scr-title">Activity</h1>
+        <div className="scr-action" />
+      </div>
+      <div className="inbox-list">
+        {activity.length === 0 && (
+          <div className="search-empty" style={{ paddingTop: 40 }}>
+            <div className="search-eyebrow">No activity yet</div>
+          </div>
+        )}
+        {activity.map(a => {
+          const t = a.txnId ? txns.find(x => x.id === a.txnId) : null;
+          const person = PEOPLE[a.by];
+          return (
+            <button key={a.id} className="inbox-row" onClick={() => a.txnId && onOpenTxn(a.txnId)}>
+              <Avatar person={a.by} size={32} />
+              <div className="inbox-mid">
+                {a.kind === 'expense_added' && t && (
+                  <>
+                    <div className="inbox-line"><b>{person.name}</b> added <b>{t.merchant}</b></div>
+                    <div className="inbox-sub"><Money amount={t.amount} currency={t.currency} size={12} muted /></div>
+                  </>
+                )}
+                {a.kind === 'comment' && t && (
+                  <>
+                    <div className="inbox-line"><b>{person.name}</b> on {t.merchant}</div>
+                    <div className="inbox-sub italic">"{a.preview}"</div>
+                  </>
+                )}
+                {a.kind === 'settled' && (
+                  <>
+                    <div className="inbox-line"><b>{person.name}</b> settled up</div>
+                    <div className="inbox-sub">
+                      <Money amount={a.amount} currency={a.currency} size={12} muted />
+                      {a.note && <><span>·</span><span>{a.note}</span></>}
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="inbox-time">{relTime(a.at)}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Settle ───────────────────────────────────────────────
+function SettleScreen({ onBack }) {
+  const { txns, refresh } = useData();
+  const bals = useMemo(() => balances(txns), [txns]);
+  const [note, setNote] = useState('');
+  const [whichCur, setWhichCur] = useState('KSH');
+  const [saving, setSaving] = useState(false);
+  const ksh = bals.KSH || 0;
+  const usd = bals.USD || 0;
+  const amt = whichCur === 'KSH' ? ksh : usd;
+  const direction = amt > 0 ? 'Kari pays Austin' : 'Austin pays Kari';
+
+  const markSettled = async () => {
+    if (saving || Math.abs(amt) < 0.01) return;
+    setSaving(true);
+    await insertSettlement(Math.abs(amt), whichCur, note.trim() || null);
+    setSaving(false);
+    refresh();
+    onBack();
+  };
+
+  return (
+    <div className="scr">
+      <ScreenHeader title="Settle up" onBack={onBack} />
+
+      <div className="settle-hero">
+        <div className="settle-eyebrow">Mark settled</div>
+        <Money amount={Math.abs(amt)} currency={whichCur} size={56} />
+        <div className="settle-direction">{direction}</div>
+      </div>
+
+      <div className="seg-toggle" style={{ margin: '0 16px 20px' }}>
+        <button className={whichCur === 'KSH' ? 'on' : ''} onClick={() => setWhichCur('KSH')}>
+          KSh {Math.abs(ksh).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+        </button>
+        <button className={whichCur === 'USD' ? 'on' : ''} onClick={() => setWhichCur('USD')}>
+          $ {Math.abs(usd).toFixed(2)}
+        </button>
+      </div>
+
+      <div className="field" style={{ padding: '0 16px' }}>
+        <label>Note (optional)</label>
+        <input type="text" placeholder="e.g. sent via M-Pesa, deposited at ATM" value={note}
+          onChange={(e) => setNote(e.target.value)} className="text-field" />
+      </div>
+
+      <div className="settle-info">
+        Marking settled doesn't move money. It just zeroes your {whichCur} balance and logs an activity entry for both of you to see.
+      </div>
+
+      <div className="paste-cta">
+        <button className="btn-primary big" onClick={markSettled} disabled={saving || Math.abs(amt) < 0.01}>
+          {saving ? 'Saving…' : 'Mark settled'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Reports ──────────────────────────────────────────────
+function OverviewReport({ data, cur }) {
+  const { weeks, categoryRanked, catPrev, monthTotal } = data;
+  const maxWeek = Math.max(...weeks.map(w => w.total));
+  const W = 326, H = 120, pad = { top: 12, right: 4, bottom: 18, left: 4 };
+  const innerW = W - pad.left - pad.right;
+  const innerH = H - pad.top - pad.bottom;
+  const points = weeks.map((w, i) => {
+    const x = pad.left + (i / (weeks.length - 1)) * innerW;
+    const y = pad.top + innerH - (w.total / maxWeek) * innerH;
+    return [x, y];
+  });
+  const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0]} ${p[1]}`).join(' ');
+  const areaPath = path + ` L ${points[points.length - 1][0]} ${pad.top + innerH} L ${points[0][0]} ${pad.top + innerH} Z`;
+  const last = weeks[weeks.length - 1];
+  const prev = weeks[weeks.length - 2];
+  const wow = prev.total ? ((last.total - prev.total) / prev.total) * 100 : 0;
+
+  return (
+    <div className="report-body">
+      <div className="report-card">
+        <div className="report-card-head">
+          <span className="report-eyebrow">Last 12 weeks · {cur === 'USD' ? '$' : 'KSh'}</span>
+          <span className="report-trend" style={{ color: wow > 0 ? 'var(--negative)' : 'var(--positive)' }}>
+            {wow > 0 ? '↑' : '↓'} {Math.abs(wow).toFixed(0)}% week / week
+          </span>
+        </div>
+        <div className="report-big">
+          <Money amount={last.total} currency={cur} size={28} />
+          <span className="report-big-sub">this week</span>
+        </div>
+        <svg width={W} height={H} className="burn-chart">
+          <defs>
+            <linearGradient id="burn-area" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.18" />
+              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <line x1={pad.left} x2={W - pad.right} y1={pad.top + innerH} y2={pad.top + innerH} stroke="var(--line)" strokeWidth="1" />
+          <path d={areaPath} fill="url(#burn-area)" />
+          <path d={path} fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+          {points.map((p, i) => (
+            <circle key={i} cx={p[0]} cy={p[1]} r={i === points.length - 1 ? 3 : 0} fill="var(--accent)" />
+          ))}
+          {[0, 5, 11].map(i => {
+            const anchor = i === 0 ? 'start' : (i === 11 ? 'end' : 'middle');
+            return (
+              <text key={i} x={points[i][0]} y={H - 4} textAnchor={anchor} fontSize="9" fill="var(--ink-3)" fontFamily="var(--font-sans)">
+                {weeks[i].end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </text>
+            );
+          })}
+        </svg>
+      </div>
+
+      <div className="report-card">
+        <div className="report-card-head">
+          <span className="report-eyebrow">Categories · last 30 days</span>
+          <Money amount={monthTotal} currency={cur} size={13} muted />
+        </div>
+        <div className="cat-list">
+          {categoryRanked.map(([cat, amt]) => {
+            const prevAmt = catPrev[cat] || 0;
+            const change = prevAmt ? ((amt - prevAmt) / prevAmt) * 100 : null;
+            const pct = (amt / monthTotal) * 100;
+            return (
+              <div key={cat} className="cat-line">
+                <CategoryIcon category={cat} size={28} />
+                <div className="cat-line-mid">
+                  <div className="cat-line-row">
+                    <span className="cat-line-name">{CATEGORIES[cat].label}</span>
+                    <Money amount={amt} currency={cur} size={13} />
+                  </div>
+                  <div className="cat-line-bar">
+                    <div className="cat-line-bar-fill" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="cat-line-meta">
+                    <span>{pct.toFixed(0)}%</span>
+                    {change !== null && (
+                      <span style={{ color: change > 0 ? 'var(--negative)' : 'var(--positive)' }}>
+                        {change > 0 ? '↑' : '↓'} {Math.abs(change).toFixed(0)}% vs prev 30d
+                      </span>
+                    )}
+                    {change === null && <span className="cat-line-meta-new">new</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MerchantsReport({ data, cur }) {
+  const top = data.merchantRanked.slice(0, 12);
+  const maxCount = top[0] ? top[0][1].count : 1;
+  return (
+    <div className="report-body">
+      <div className="report-card">
+        <div className="report-card-head">
+          <span className="report-eyebrow">Most frequent · last 30 days</span>
+          <span className="report-trend">{top.length} merchants</span>
+        </div>
+        <div className="merch-list">
+          {top.map(([name, info], idx) => (
+            <div key={name} className="merch-row">
+              <span className="merch-rank">{String(idx + 1).padStart(2, '0')}</span>
+              <CategoryIcon category={info.category} size={32} />
+              <div className="merch-mid">
+                <div className="merch-name">{name}</div>
+                <div className="merch-sub">{CATEGORIES[info.category].label}</div>
+              </div>
+              <div className="merch-right">
+                <div className="merch-count">
+                  <span className="merch-count-num">{info.count}</span>
+                  <span className="merch-count-x">×</span>
+                </div>
+                <Money amount={info.total} currency={cur} size={12} muted />
+              </div>
+              <div className="merch-bar">
+                <div className="merch-bar-fill" style={{ width: `${(info.count / maxCount) * 100}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CalendarReport({ data, cur }) {
+  const { days } = data;
+  const maxDay = Math.max(...days.map(d => d.total));
+  const weeks = [];
+  for (let w = 0; w < 8; w++) weeks.push(days.slice(w * 7, (w + 1) * 7));
+  const totalSpent = days.reduce((s, d) => s + d.total, 0);
+  const activeDays = days.filter(d => d.total > 0).length;
+  const heaviest = days.reduce((m, d) => d.total > m.total ? d : m, { total: 0, date: null });
+
+  return (
+    <div className="report-body">
+      <div className="report-card">
+        <div className="report-card-head">
+          <span className="report-eyebrow">Last 8 weeks · {cur === 'USD' ? '$' : 'KSh'}</span>
+          <Money amount={totalSpent} currency={cur} size={13} muted />
+        </div>
+        <div className="cal-grid">
+          <div className="cal-dow">
+            {['S','M','T','W','T','F','S'].map((d, i) => <span key={i}>{d}</span>)}
+          </div>
+          {weeks.map((week, wi) => (
+            <div key={wi} className="cal-week">
+              {week.map((d, di) => {
+                const intensity = maxDay > 0 ? d.total / maxDay : 0;
+                const isToday = d.date.toDateString() === TODAY.toDateString();
+                let bg;
+                if (d.inFuture) bg = 'transparent';
+                else if (d.total === 0) bg = 'var(--surface-2)';
+                else {
+                  const step = intensity > 0.66 ? 100 : intensity > 0.33 ? 65 : intensity > 0.10 ? 35 : 18;
+                  bg = `color-mix(in oklab, var(--accent) ${step}%, var(--surface))`;
+                }
+                return (
+                  <div key={di} className="cal-day"
+                    title={d.total ? `${d.date.toLocaleDateString('en-US', { month:'short', day:'numeric' })} — ${cur === 'USD' ? '$' : 'KSh'} ${d.total.toLocaleString('en-US', { maximumFractionDigits: cur === 'USD' ? 2 : 0 })}` : d.date.toLocaleDateString('en-US', { month:'short', day:'numeric' })}>
+                    <div className={`cal-cell ${isToday ? 'today' : ''}`} style={{ background: bg }}>
+                      {isToday && <span className="cal-dot" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <div className="cal-legend">
+          <span className="cal-legend-label">less</span>
+          {[0, 0.2, 0.4, 0.7, 1].map(v => {
+            const step = v > 0.66 ? 100 : v > 0.33 ? 65 : v > 0.10 ? 35 : v > 0 ? 18 : 0;
+            return (
+              <span key={v} className="cal-legend-cell" style={{
+                background: step === 0 ? 'var(--surface-2)' : `color-mix(in oklab, var(--accent) ${step}%, var(--surface))`,
+              }} />
+            );
+          })}
+          <span className="cal-legend-label">more</span>
+        </div>
+      </div>
+
+      <div className="report-card">
+        <div className="report-card-head"><span className="report-eyebrow">Highlights</span></div>
+        <div className="highlight-grid">
+          <div className="highlight">
+            <div className="highlight-num">{activeDays}</div>
+            <div className="highlight-label">days with spending</div>
+          </div>
+          <div className="highlight">
+            <div className="highlight-num">{56 - activeDays}</div>
+            <div className="highlight-label">quiet days</div>
+          </div>
+          <div className="highlight">
+            <Money amount={heaviest.total} currency={cur} size={20} />
+            <div className="highlight-label">heaviest day {heaviest.date && `· ${heaviest.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportsScreen({ fxRate }) {
+  const { txns } = useData();
+  const [view, setView] = useState('overview');
+  const [cur, setCur] = useState('KSH');
+
+  const norm = useMemo(() => txns.map(t => {
+    let amount = t.amount;
+    if (t.currency === 'USD' && cur === 'KSH') amount = t.amount * fxRate;
+    else if (t.currency === 'KSH' && cur === 'USD') amount = t.amount / fxRate;
+    return { ...t, amount, currency: cur };
+  }), [cur, fxRate, txns]);
+
+  const data = useMemo(() => {
+    const txns = norm;
+    const weeks = [];
+    for (let i = 11; i >= 0; i--) {
+      const end = new Date(TODAY); end.setDate(end.getDate() - i * 7);
+      const start = new Date(end); start.setDate(start.getDate() - 7);
+      const total = txns.filter(t => {
+        const d = new Date(t.date);
+        return d >= start && d < end;
+      }).reduce((s, t) => s + t.amount, 0);
+      weeks.push({ start, end, total });
+    }
+
+    const cutoff = new Date(TODAY); cutoff.setDate(cutoff.getDate() - 30);
+    const prevCutoff = new Date(TODAY); prevCutoff.setDate(prevCutoff.getDate() - 60);
+    const thisMonth = txns.filter(t => new Date(t.date) >= cutoff);
+    const prevMonth = txns.filter(t => {
+      const d = new Date(t.date);
+      return d >= prevCutoff && d < cutoff;
+    });
+    const sumBy = (arr, k) => arr.reduce((acc, t) => {
+      acc[t[k]] = (acc[t[k]] || 0) + t.amount;
+      return acc;
+    }, {});
+    const catNow = sumBy(thisMonth, 'category');
+    const catPrev = sumBy(prevMonth, 'category');
+    const categoryRanked = Object.entries(catNow).sort((a, b) => b[1] - a[1]);
+    const monthTotal = Object.values(catNow).reduce((s, v) => s + v, 0);
+
+    const merchNow = thisMonth.reduce((acc, t) => {
+      const key = t.merchant.replace(/ —.*$/, '');
+      if (!acc[key]) acc[key] = { count: 0, total: 0, last: 0, category: t.category };
+      acc[key].count++;
+      acc[key].total += t.amount;
+      acc[key].last = Math.max(acc[key].last, new Date(t.date).getTime());
+      return acc;
+    }, {});
+    const merchantRanked = Object.entries(merchNow).sort((a, b) => b[1].count - a[1].count);
+
+    const todayDow = TODAY.getDay();
+    const calEnd = new Date(TODAY); calEnd.setDate(calEnd.getDate() + (6 - todayDow));
+    const calStart = new Date(calEnd); calStart.setDate(calStart.getDate() - 55);
+    const days = [];
+    for (let i = 0; i < 56; i++) {
+      const d = new Date(calStart); d.setDate(d.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      const dayTxns = txns.filter(t => t.date.slice(0, 10) === key);
+      const total = dayTxns.reduce((s, t) => s + t.amount, 0);
+      const inFuture = d > TODAY;
+      days.push({ date: d, total, count: dayTxns.length, inFuture });
+    }
+
+    return { weeks, categoryRanked, catPrev, monthTotal, merchantRanked, days };
+  }, [norm]);
+
+  return (
+    <div className="scr reports">
+      <div className="scr-head">
+        <div style={{ width: 36 }} />
+        <h1 className="scr-title">Reports</h1>
+        <button className="link-btn" onClick={() => alert('CSV export — pretend it just downloaded')}>Export</button>
+      </div>
+
+      <div className="reports-controls">
+        <div className="seg-toggle" style={{ flex: 1 }}>
+          <button className={view === 'overview' ? 'on' : ''} onClick={() => setView('overview')}>Overview</button>
+          <button className={view === 'merchants' ? 'on' : ''} onClick={() => setView('merchants')}>Merchants</button>
+          <button className={view === 'calendar' ? 'on' : ''} onClick={() => setView('calendar')}>Calendar</button>
+        </div>
+        <div className="seg-toggle compact reports-cur">
+          <button className={cur === 'KSH' ? 'on' : ''} onClick={() => setCur('KSH')}>KSh</button>
+          <button className={cur === 'USD' ? 'on' : ''} onClick={() => setCur('USD')}>$</button>
+        </div>
+      </div>
+
+      {view === 'overview' && <OverviewReport data={data} cur={cur} />}
+      {view === 'merchants' && <MerchantsReport data={data} cur={cur} />}
+      {view === 'calendar' && <CalendarReport data={data} cur={cur} />}
+    </div>
+  );
+}
+
+// ─── Settings ─────────────────────────────────────────────
+function SettingsScreen({ onBack, fxRate, setFxRate }) {
+  const [rate, setRate] = useState(String(fxRate));
+  const [fetchState, setFetchState] = useState('idle');
+  const [fetchedAt, setFetchedAt] = useState(() => localStorage.getItem('sw.fxFetchedAt') || null);
+  const [autoFetch, setAutoFetch] = useState(() => localStorage.getItem('sw.fxAuto') === '1');
+
+  useEffect(() => { setRate(String(fxRate)); }, [fxRate]);
+
+  const commit = () => {
+    const n = parseFloat(rate);
+    if (!isNaN(n) && n > 0) setFxRate(n);
+  };
+
+  const fetchRate = async () => {
+    setFetchState('loading');
+    try {
+      const url = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json';
+      const res = await fetch(url);
+      const data = await res.json();
+      const v = data?.usd?.kes;
+      if (typeof v !== 'number') throw new Error('bad response');
+      const rounded = Math.round(v * 100) / 100;
+      setFxRate(rounded);
+      setRate(String(rounded));
+      const now = new Date().toISOString();
+      setFetchedAt(now);
+      localStorage.setItem('sw.fxFetchedAt', now);
+      setFetchState('ok');
+      setTimeout(() => setFetchState('idle'), 1800);
+    } catch (e) {
+      setFetchState('err');
+      setTimeout(() => setFetchState('idle'), 2500);
+    }
+  };
+
+  useEffect(() => {
+    if (!autoFetch) return;
+    if (!fetchedAt || (Date.now() - new Date(fetchedAt).getTime()) > 12 * 3600 * 1000) {
+      fetchRate();
+    }
+  }, []);
+
+  const toggleAuto = () => {
+    const next = !autoFetch;
+    setAutoFetch(next);
+    localStorage.setItem('sw.fxAuto', next ? '1' : '0');
+    if (next && !fetchedAt) fetchRate();
+  };
+
+  const { txns } = useData();
+  const stats = useMemo(() => ({
+    ksh: txns.filter(t => t.currency === 'KSH').length,
+    usd: txns.filter(t => t.currency === 'USD').length,
+    total: txns.length,
+  }), [txns]);
+
+  const fetchedLabel = fetchedAt ? `updated ${relTime(fetchedAt)}` : 'never fetched';
+
+  return (
+    <div className="scr">
+      <ScreenHeader title="Settings" onBack={onBack} />
+
+      <div className="settings-section">
+        <div className="settings-eyebrow">Household</div>
+        <div className="settings-card">
+          <div className="settings-row">
+            <Avatar person="austin" size={28} />
+            <div className="settings-row-mid">
+              <div className="settings-row-name">Austin</div>
+              <div className="settings-row-sub">that's you</div>
+            </div>
+          </div>
+          <div className="settings-row">
+            <Avatar person="kari" size={28} />
+            <div className="settings-row-mid">
+              <div className="settings-row-name">Kari</div>
+              <div className="settings-row-sub">partner</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-eyebrow">FX rate</div>
+        <div className="settings-card">
+          <div className="settings-fx">
+            <div className="settings-fx-input">
+              <span className="settings-fx-prefix">1 USD =</span>
+              <input type="text" inputMode="decimal" value={rate}
+                onChange={(e) => setRate(e.target.value.replace(/[^\d.]/g, ''))}
+                onBlur={commit}
+                onKeyDown={(e) => e.key === 'Enter' && e.target.blur()} />
+              <span className="settings-fx-suffix">KSh</span>
+            </div>
+            <div className="settings-fx-meta">
+              <span className="settings-fx-status">
+                <span className={`fx-dot fx-dot-${fetchState === 'err' ? 'err' : (fetchedAt ? 'ok' : 'idle')}`} />
+                {fetchedLabel}
+              </span>
+              <button className={`fx-fetch-btn ${fetchState}`} onClick={fetchRate} disabled={fetchState === 'loading'}>
+                {fetchState === 'loading' && (
+                  <span className="fx-spin">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <path d="M12 3a9 9 0 019 9" />
+                    </svg>
+                  </span>
+                )}
+                {fetchState === 'idle' && (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12a9 9 0 11-3-6.7M21 4v5h-5" />
+                  </svg>
+                )}
+                {fetchState === 'ok' && (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 12l5 5L20 6" />
+                  </svg>
+                )}
+                {fetchState === 'err' && '!'}
+                {fetchState === 'loading' ? 'fetching…' :
+                 fetchState === 'ok' ? 'updated' :
+                 fetchState === 'err' ? 'offline' : 'fetch latest'}
+              </button>
+            </div>
+          </div>
+          <div className="settings-toggle-row">
+            <div className="settings-toggle-mid">
+              <div className="settings-toggle-name">Auto-refresh daily</div>
+              <div className="settings-toggle-sub">checks once every 12 hours when you open the app</div>
+            </div>
+            <button className={`switch ${autoFetch ? 'on' : ''}`} onClick={toggleAuto} role="switch" aria-checked={autoFetch}>
+              <span className="switch-thumb" />
+            </button>
+          </div>
+        </div>
+        <div className="settings-hint">
+          Rates from <b>fawazahmed0/currency-api</b> — free, no key, updates daily. Or just type the rate from your bank above.
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-eyebrow">Data</div>
+        <div className="settings-card">
+          <button className="settings-action-row" onClick={() => alert('CSV ready — pretend it just downloaded.')}>
+            <span className="settings-action-label">Export all to CSV</span>
+            <span className="settings-action-meta">{stats.total} txns</span>
+          </button>
+          <button className="settings-action-row" onClick={() => alert('Backup created.')}>
+            <span className="settings-action-label">Back up to file</span>
+            <span className="settings-action-meta">{stats.ksh} KSh · {stats.usd} USD</span>
+          </button>
+          <button className="settings-action-row danger" onClick={() => alert('Are you sure? This would wipe everything.')}>
+            <span className="settings-action-label">Reset Splitwiser</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-footer">
+        <div className="settings-footer-name">Splitwiser</div>
+        <div className="settings-footer-version">v0.1 · just for Kari &amp; Austin</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── App ──────────────────────────────────────────────────
+function App() {
+  const [screen, setScreen] = useState({ name: 'home' });
+  const [showCombined, setShowCombined] = useState(false);
+  const [tab, setTab] = useState('home');
+  const [fxRate, setFxRate] = useState(129);
+
+  // Live data
+  const [txns, setTxns] = useState([]);
+  const [commentsByTxn, setCommentsByTxn] = useState({});
+  const [settlements, setSettlements] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const refresh = async () => {
+    const [t, c, s] = await Promise.all([loadTransactions(), loadComments(), loadSettlements()]);
+    setTxns(t);
+    setCommentsByTxn(c);
+    setSettlements(s);
+    setLoaded(true);
+  };
+
+  useEffect(() => {
+    if (!CONFIGURED) { setLoaded(true); return; }
+    refresh();
+    return subscribeAll(refresh);
+  }, []);
+
+  const activity = useMemo(
+    () => deriveActivity(txns, commentsByTxn, settlements),
+    [txns, commentsByTxn, settlements]
+  );
+
+  const goTab = (id) => {
+    if (id === 'add') setScreen({ name: 'add' });
+    else { setTab(id); setScreen({ name: id }); }
+  };
+  const openTxn = (id) => setScreen({ name: 'detail', id });
+  const back = () => setScreen({ name: tab });
+
+  if (!CONFIGURED) {
+    return (
+      <div className="stage">
+        <div style={{ maxWidth: 420, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 22, fontFamily: 'var(--font-sans)' }}>
+          <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Splitwiser needs Supabase credentials</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+            Open <span className="mono">Splitwiser.html</span> and replace <span className="mono">__SUPABASE_URL__</span> and <span className="mono">__SUPABASE_ANON_KEY__</span> at the top of the data-layer script with your project values (Supabase → Project Settings → API).
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const renderScreen = () => {
+    switch (screen.name) {
+      case 'home':
+        return <HomeScreen onOpenTxn={openTxn}
+          onSettleUp={() => setScreen({ name: 'settle' })}
+          onAddExpense={() => setScreen({ name: 'add' })}
+          onOpenSettings={() => setScreen({ name: 'settings' })}
+          fxRate={fxRate} showCombined={showCombined}
+          onToggleCombined={() => setShowCombined(s => !s)} />;
+      case 'reports': return <ReportsScreen fxRate={fxRate} />;
+      case 'search':  return <SearchScreen onOpenTxn={openTxn} />;
+      case 'inbox':   return <InboxScreen onOpenTxn={openTxn} />;
+      case 'detail':  return <DetailScreen txnId={screen.id} onBack={back} />;
+      case 'add':     return <AddScreen onClose={back} />;
+      case 'settle':  return <SettleScreen onBack={back} />;
+      case 'settings':return <SettingsScreen onBack={back} fxRate={fxRate} setFxRate={setFxRate} />;
+      default: return null;
+    }
+  };
+
+  const isFullScreen = ['add', 'detail', 'settle', 'settings'].includes(screen.name);
+
+  return (
+    <DataCtx.Provider value={{ txns, commentsByTxn, settlements, activity, loaded, refresh }}>
+      <div className="stage">
+        <PhoneShell>
+          <div className="screen-area">{renderScreen()}</div>
+          {!isFullScreen && <TabBar active={tab} onChange={goTab} />}
+        </PhoneShell>
+      </div>
+    </DataCtx.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>
