@@ -1648,8 +1648,13 @@ const PEOPLE = {
   kari:   { id: 'kari',   name: 'Kari',   initial: 'K', color: '#D97757' },
 };
 
-// Identity comes from ?me=austin|kari (defaults to austin)
-const ME = (new URLSearchParams(location.search).get('me') === 'kari') ? 'kari' : 'austin';
+// Identity comes from the authenticated user's email (set by App after auth resolves).
+let ME = null;
+const EMAIL_TO_PERSON = {
+  'karimruz@gmail.com':     'kari',
+  'austinharris@gmail.com': 'austin',
+};
+const ALLOWED_EMAILS = Object.keys(EMAIL_TO_PERSON);
 
 const CATEGORIES = {
   groceries:     { label: 'Groceries',     glyph: 'G' },
@@ -1803,6 +1808,30 @@ async function insertComment(txnId, text) {
   return { by: data.by_user, at: data.at, text: data.text };
 }
 
+async function updateTransaction(id, t) {
+  if (!sb) return null;
+  const { data, error } = await sb.from('transactions').update({
+    date: t.date,
+    merchant: t.merchant,
+    amount: t.amount,
+    currency: t.currency,
+    paid_by: t.paidBy,
+    split_mode: t.splitMode,
+    category: t.category,
+    note: t.note || null,
+    code: t.code || null,
+  }).eq('id', id).select().single();
+  if (error) { console.error('updateTransaction', error); return null; }
+  return rowToTxn(data);
+}
+
+async function deleteTransaction(id) {
+  if (!sb) return false;
+  const { error } = await sb.from('transactions').delete().eq('id', id);
+  if (error) { console.error('deleteTransaction', error); return false; }
+  return true;
+}
+
 async function insertSettlement(amount, currency, note) {
   if (!sb) return null;
   const { data, error } = await sb.from('settlements').insert({
@@ -1941,6 +1970,83 @@ function PhoneShell({ children }) {
       </div>
       <div className="phone-home" />
     </div>
+  );
+}
+
+// ─── Auth screens ─────────────────────────────────────────
+function AuthCard({ children }) {
+  return (
+    <div className="stage">
+      <div style={{
+        maxWidth: 360, width: '100%', background: 'var(--surface)',
+        border: '1px solid var(--line)', borderRadius: 16, padding: 26,
+        boxShadow: '0 30px 60px -20px rgba(0,0,0,0.18)',
+        display: 'flex', flexDirection: 'column', gap: 16,
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(null);
+
+  const send = async (e) => {
+    if (e) e.preventDefault();
+    if (!email.trim() || sending) return;
+    setSending(true);
+    setError(null);
+    const { error } = await sb.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: { emailRedirectTo: location.origin + location.pathname },
+    });
+    setSending(false);
+    if (error) setError(error.message);
+    else setSent(true);
+  };
+
+  return (
+    <AuthCard>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>Splitwiser</div>
+        <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em', marginTop: 4 }}>Sign in</div>
+        <div style={{ fontSize: 13, color: 'var(--ink-2)', marginTop: 6, lineHeight: 1.5 }}>
+          A magic link goes to your email. Only Kari & Austin can get past this screen.
+        </div>
+      </div>
+      {sent ? (
+        <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: 14, fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+          Sent. Check <b>{email}</b> for a sign-in link.
+          <div style={{ marginTop: 8 }}>
+            <button className="link-btn" style={{ padding: 0 }} onClick={() => { setSent(false); setEmail(''); }}>Use a different email</button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={send} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <input className="text-field" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+          <button className="btn-primary big" type="submit" disabled={!email.trim() || sending}>
+            {sending ? 'Sending…' : 'Send magic link'}
+          </button>
+          {error && <div style={{ fontSize: 12, color: 'var(--negative)' }}>{error}</div>}
+        </form>
+      )}
+    </AuthCard>
+  );
+}
+
+function UnauthorizedScreen({ email, onLogout }) {
+  return (
+    <AuthCard>
+      <div style={{ fontSize: 16, fontWeight: 600 }}>Not on the list</div>
+      <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+        <span className="mono" style={{ wordBreak: 'break-all' }}>{email}</span> isn't a member of this Splitwiser household.
+      </div>
+      <button className="btn-secondary big" onClick={onLogout}>Sign in as someone else</button>
+    </AuthCard>
   );
 }
 
@@ -2256,7 +2362,7 @@ function SplitPicker({ value, onChange, amount, currency, paidBy }) {
   );
 }
 
-function ManualEntry({ m, setM, onSave }) {
+function ManualEntry({ m, setM, onSave, saveLabel = 'Add expense' }) {
   const set = (k, v) => setM(prev => ({ ...prev, [k]: v }));
   return (
     <div className="manual">
@@ -2316,7 +2422,7 @@ function ManualEntry({ m, setM, onSave }) {
 
       <div className="paste-cta">
         <button className="btn-primary big" disabled={!m.amount || !m.merchant} onClick={onSave}>
-          Add expense
+          {saveLabel}
         </button>
       </div>
     </div>
@@ -2508,8 +2614,49 @@ function AddScreen({ onClose }) {
   );
 }
 
+// ─── Edit ─────────────────────────────────────────────────
+function EditScreen({ txnId, onClose }) {
+  const { txns, refresh } = useData();
+  const t = txns.find(x => x.id === txnId);
+  const [m, setM] = useState(t ? {
+    amount: String(t.amount),
+    currency: t.currency,
+    merchant: t.merchant,
+    paidBy: t.paidBy,
+    splitMode: t.splitMode,
+    category: t.category,
+    note: t.note || '',
+  } : null);
+  if (!t || !m) return null;
+
+  const save = async () => {
+    const amount = parseFloat(m.amount);
+    if (!amount || !m.merchant) return;
+    await updateTransaction(t.id, {
+      date: t.date,
+      merchant: m.merchant,
+      amount,
+      currency: m.currency,
+      paidBy: m.paidBy,
+      splitMode: m.splitMode,
+      category: m.category,
+      note: m.note,
+      code: t.code,
+    });
+    refresh();
+    onClose();
+  };
+
+  return (
+    <div className="scr">
+      <ScreenHeader title="Edit expense" onBack={onClose} />
+      <ManualEntry m={m} setM={setM} onSave={save} saveLabel="Save changes" />
+    </div>
+  );
+}
+
 // ─── Detail ───────────────────────────────────────────────
-function DetailScreen({ txnId, onBack }) {
+function DetailScreen({ txnId, onBack, onEdit }) {
   const { txns, commentsByTxn, refresh } = useData();
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
@@ -2530,7 +2677,9 @@ function DetailScreen({ txnId, onBack }) {
 
   return (
     <div className="scr">
-      <ScreenHeader title="" onBack={onBack} action={<button className="link-btn">Edit</button>} />
+      <ScreenHeader title="" onBack={onBack} action={
+        <button className="link-btn" onClick={() => onEdit && onEdit(t.id)}>Edit</button>
+      } />
 
       <div className="detail-hero">
         <CategoryIcon category={t.category} size={56} />
@@ -2603,6 +2752,21 @@ function DetailScreen({ txnId, onBack }) {
             </svg>
           </button>
         </div>
+      </div>
+
+      <div style={{ padding: '24px 16px 8px' }}>
+        <button
+          className="btn-secondary big"
+          style={{ width: '100%', color: 'var(--negative)' }}
+          onClick={async () => {
+            if (!window.confirm(`Delete "${t.merchant}"? This can't be undone.`)) return;
+            await deleteTransaction(t.id);
+            refresh();
+            onBack();
+          }}
+        >
+          Delete expense
+        </button>
       </div>
     </div>
   );
@@ -3227,6 +3391,22 @@ function SettingsScreen({ onBack, fxRate, setFxRate }) {
       </div>
 
       <div className="settings-section">
+        <div className="settings-eyebrow">Account</div>
+        <div className="settings-card">
+          <div className="settings-row">
+            <Avatar person={ME} size={28} />
+            <div className="settings-row-mid">
+              <div className="settings-row-name">Signed in as {PEOPLE[ME].name}</div>
+              <div className="settings-row-sub">{sb && sb.auth ? (sb.auth.currentSession?.user?.email || '') : ''}</div>
+            </div>
+          </div>
+          <button className="settings-action-row" onClick={async () => { await sb.auth.signOut(); }}>
+            <span className="settings-action-label">Sign out</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-section">
         <div className="settings-eyebrow">Data</div>
         <div className="settings-card">
           <button className="settings-action-row" onClick={() => alert('CSV ready — pretend it just downloaded.')}>
@@ -3236,9 +3416,6 @@ function SettingsScreen({ onBack, fxRate, setFxRate }) {
           <button className="settings-action-row" onClick={() => alert('Backup created.')}>
             <span className="settings-action-label">Back up to file</span>
             <span className="settings-action-meta">{stats.ksh} KSh · {stats.usd} USD</span>
-          </button>
-          <button className="settings-action-row danger" onClick={() => alert('Are you sure? This would wipe everything.')}>
-            <span className="settings-action-label">Reset Splitwiser</span>
           </button>
         </div>
       </div>
@@ -3258,6 +3435,10 @@ function App() {
   const [tab, setTab] = useState('home');
   const [fxRate, setFxRate] = useState(129);
 
+  // Auth
+  const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+
   // Live data
   const [txns, setTxns] = useState([]);
   const [commentsByTxn, setCommentsByTxn] = useState({});
@@ -3272,11 +3453,27 @@ function App() {
     setLoaded(true);
   };
 
+  // Resolve session on mount; subscribe to changes.
   useEffect(() => {
-    if (!CONFIGURED) { setLoaded(true); return; }
+    if (!CONFIGURED) { setAuthReady(true); return; }
+    sb.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: { subscription } } = sb.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Once we have a valid authed allowlisted session, load data + subscribe to realtime.
+  const allowedEmail = session?.user?.email && ALLOWED_EMAILS.includes(session.user.email)
+    ? session.user.email : null;
+  if (allowedEmail) ME = EMAIL_TO_PERSON[allowedEmail];
+
+  useEffect(() => {
+    if (!CONFIGURED || !allowedEmail) return;
     refresh();
     return subscribeAll(refresh);
-  }, []);
+  }, [allowedEmail]);
 
   const activity = useMemo(
     () => deriveActivity(txns, commentsByTxn, settlements),
@@ -3296,11 +3493,17 @@ function App() {
         <div style={{ maxWidth: 420, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 22, fontFamily: 'var(--font-sans)' }}>
           <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Splitwiser needs Supabase credentials</div>
           <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-            Open <span className="mono">Splitwiser.html</span> and replace <span className="mono">__SUPABASE_URL__</span> and <span className="mono">__SUPABASE_ANON_KEY__</span> at the top of the data-layer script with your project values (Supabase → Project Settings → API).
+            Open <span className="mono">index.html</span> and replace <span className="mono">__SUPABASE_URL__</span> and <span className="mono">__SUPABASE_ANON_KEY__</span> at the top of the data-layer script with your project values (Supabase → Project Settings → API).
           </div>
         </div>
       </div>
     );
+  }
+
+  if (!authReady) return <div className="stage" />;
+  if (!session) return <LoginScreen />;
+  if (!allowedEmail) {
+    return <UnauthorizedScreen email={session.user.email} onLogout={() => sb.auth.signOut()} />;
   }
 
   const renderScreen = () => {
@@ -3315,7 +3518,8 @@ function App() {
       case 'reports': return <ReportsScreen fxRate={fxRate} />;
       case 'search':  return <SearchScreen onOpenTxn={openTxn} />;
       case 'inbox':   return <InboxScreen onOpenTxn={openTxn} />;
-      case 'detail':  return <DetailScreen txnId={screen.id} onBack={back} />;
+      case 'detail':  return <DetailScreen txnId={screen.id} onBack={back} onEdit={(id) => setScreen({ name: 'edit', id })} />;
+      case 'edit':    return <EditScreen txnId={screen.id} onClose={() => setScreen({ name: 'detail', id: screen.id })} />;
       case 'add':     return <AddScreen onClose={back} />;
       case 'settle':  return <SettleScreen onBack={back} />;
       case 'settings':return <SettingsScreen onBack={back} fxRate={fxRate} setFxRate={setFxRate} />;
@@ -3323,7 +3527,7 @@ function App() {
     }
   };
 
-  const isFullScreen = ['add', 'detail', 'settle', 'settings'].includes(screen.name);
+  const isFullScreen = ['add', 'detail', 'edit', 'settle', 'settings'].includes(screen.name);
 
   return (
     <DataCtx.Provider value={{ txns, commentsByTxn, settlements, activity, loaded, refresh }}>
