@@ -1,24 +1,45 @@
--- Splitwiser RLS migration — tightens the open policies to an authenticated allowlist.
--- Run this in Supabase → SQL Editor AFTER running supabase-schema.sql.
---
--- Effect: only requests carrying a Supabase Auth JWT whose email is in the allowlist
--- can read or write any of the three tables. Unauthenticated requests (anon key alone)
--- are rejected. Update the allowlist below if you add/remove members.
+-- Splitwiser allowlist via private `members` table.
+-- Run this in Supabase → SQL Editor. Idempotent — safe to re-run.
+-- After running, populate the members table from a separate query (don't commit
+-- emails to git). See the comment at the bottom for the insert statement.
 
--- Drop the wide-open policies created by supabase-schema.sql.
+-- ── Drop any prior policies (open or email-hardcoded) ────────
 drop policy if exists "open" on public.transactions;
 drop policy if exists "open" on public.comments;
 drop policy if exists "open" on public.settlements;
+drop policy if exists "allowlist_all" on public.transactions;
+drop policy if exists "allowlist_all" on public.comments;
+drop policy if exists "allowlist_all" on public.settlements;
 
--- Tight allowlist policies — same predicate on every table.
-create policy "allowlist_all" on public.transactions for all
-  using     ((auth.jwt() ->> 'email') in ('karimruz@gmail.com', 'austinharris@gmail.com'))
-  with check((auth.jwt() ->> 'email') in ('karimruz@gmail.com', 'austinharris@gmail.com'));
+-- ── Members table — private allowlist, source of truth ───────
+create table if not exists public.members (
+  email  text primary key,
+  person text not null check (person in ('austin', 'kari'))
+);
+alter table public.members enable row level security;
 
-create policy "allowlist_all" on public.comments for all
-  using     ((auth.jwt() ->> 'email') in ('karimruz@gmail.com', 'austinharris@gmail.com'))
-  with check((auth.jwt() ->> 'email') in ('karimruz@gmail.com', 'austinharris@gmail.com'));
+-- A logged-in user can only see their own row.
+drop policy if exists "members_self_read" on public.members;
+create policy "members_self_read" on public.members for select
+  using (email = (auth.jwt() ->> 'email'));
 
-create policy "allowlist_all" on public.settlements for all
-  using     ((auth.jwt() ->> 'email') in ('karimruz@gmail.com', 'austinharris@gmail.com'))
-  with check((auth.jwt() ->> 'email') in ('karimruz@gmail.com', 'austinharris@gmail.com'));
+-- ── Data-table policies — membership check ───────────────────
+create policy "members_only" on public.transactions for all
+  using     (exists (select 1 from public.members m where m.email = (auth.jwt() ->> 'email')))
+  with check(exists (select 1 from public.members m where m.email = (auth.jwt() ->> 'email')));
+
+create policy "members_only" on public.comments for all
+  using     (exists (select 1 from public.members m where m.email = (auth.jwt() ->> 'email')))
+  with check(exists (select 1 from public.members m where m.email = (auth.jwt() ->> 'email')));
+
+create policy "members_only" on public.settlements for all
+  using     (exists (select 1 from public.members m where m.email = (auth.jwt() ->> 'email')))
+  with check(exists (select 1 from public.members m where m.email = (auth.jwt() ->> 'email')));
+
+-- ── Populate the table — DO THIS IN A SEPARATE QUERY ─────────
+-- Don't commit the emails to git. In a fresh SQL editor query, run:
+--
+--   insert into public.members (email, person) values
+--     ('you@example.com',     'kari'),
+--     ('partner@example.com', 'austin')
+--   on conflict (email) do update set person = excluded.person;

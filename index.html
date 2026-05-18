@@ -1648,13 +1648,16 @@ const PEOPLE = {
   kari:   { id: 'kari',   name: 'Kari',   initial: 'K', color: '#D97757' },
 };
 
-// Identity comes from the authenticated user's email (set by App after auth resolves).
+// Identity is resolved at runtime via the private `members` table in Supabase.
+// (The allowlist lives in the DB so emails aren't committed to git.)
 let ME = null;
-const EMAIL_TO_PERSON = {
-  'karimruz@gmail.com':     'kari',
-  'austinharris@gmail.com': 'austin',
-};
-const ALLOWED_EMAILS = Object.keys(EMAIL_TO_PERSON);
+async function lookupMember(email) {
+  if (!sb || !email) return null;
+  const { data, error } = await sb.from('members')
+    .select('person').eq('email', email).maybeSingle();
+  if (error) { console.error('lookupMember', error); return null; }
+  return data?.person || null;
+}
 
 const CATEGORIES = {
   groceries:     { label: 'Groceries',     glyph: 'G' },
@@ -3438,6 +3441,8 @@ function App() {
   // Auth
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  const [memberPerson, setMemberPerson] = useState(null);   // 'kari' | 'austin' | null
+  const [memberChecking, setMemberChecking] = useState(false);
 
   // Live data
   const [txns, setTxns] = useState([]);
@@ -3464,16 +3469,25 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Once we have a valid authed allowlisted session, load data + subscribe to realtime.
-  const allowedEmail = session?.user?.email && ALLOWED_EMAILS.includes(session.user.email)
-    ? session.user.email : null;
-  if (allowedEmail) ME = EMAIL_TO_PERSON[allowedEmail];
-
+  // Resolve which member (kari / austin) this email is, by querying the private
+  // members table. Re-runs whenever session changes.
   useEffect(() => {
-    if (!CONFIGURED || !allowedEmail) return;
+    if (!CONFIGURED || !session?.user?.email) { setMemberPerson(null); return; }
+    setMemberChecking(true);
+    lookupMember(session.user.email).then(p => {
+      setMemberPerson(p);
+      setMemberChecking(false);
+    });
+  }, [session?.user?.email]);
+
+  if (memberPerson) ME = memberPerson;
+
+  // Once we know we're a valid member, load data + subscribe to realtime.
+  useEffect(() => {
+    if (!CONFIGURED || !memberPerson) return;
     refresh();
     return subscribeAll(refresh);
-  }, [allowedEmail]);
+  }, [memberPerson]);
 
   const activity = useMemo(
     () => deriveActivity(txns, commentsByTxn, settlements),
@@ -3502,7 +3516,8 @@ function App() {
 
   if (!authReady) return <div className="stage" />;
   if (!session) return <LoginScreen />;
-  if (!allowedEmail) {
+  if (memberChecking) return <div className="stage" />;
+  if (!memberPerson) {
     return <UnauthorizedScreen email={session.user.email} onLogout={() => sb.auth.signOut()} />;
   }
 
