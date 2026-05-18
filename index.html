@@ -1697,7 +1697,8 @@ function parseMpesa(raw) {
   const text = raw.replace(/\s+/g, ' ').trim();
   const codeMatch = text.match(/\b([A-Z0-9]{10})\b/);
   const code = codeMatch ? codeMatch[1] : null;
-  const amtMatch = text.match(/Ksh\s*([\d,]+(?:\.\d{1,2})?)/i);
+  // Accept "Ksh", "KSh", "Ksh.", "KES", "Kes" — case-insensitive, optional period.
+  const amtMatch = text.match(/K(?:sh|es)\.?\s*([\d,]+(?:\.\d{1,2})?)/i);
   const amount = amtMatch ? parseFloat(amtMatch[1].replace(/,/g, '')) : null;
 
   let merchant = null;
@@ -2598,6 +2599,16 @@ function AddScreen({ onClose }) {
             </div>
           )}
 
+          {pasted && (!parsed || !parsed.amount) && (
+            <div style={{
+              background: 'var(--surface)', border: '1px dashed var(--line-strong)',
+              borderRadius: 12, padding: 14, fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5,
+            }}>
+              Couldn't auto-parse this one. Either the SMS shape is unusual or the amount is missing.
+              Switch to <b>Manual</b> above and enter it by hand — takes 10 seconds.
+            </div>
+          )}
+
           <div className="paste-cta">
             <button className="btn-primary big" disabled={!parsed || !parsed.amount} onClick={tryParse}>Continue</button>
           </div>
@@ -2951,7 +2962,7 @@ function SettleScreen({ onBack }) {
 // ─── Reports ──────────────────────────────────────────────
 function OverviewReport({ data, cur }) {
   const { weeks, categoryRanked, catPrev, monthTotal } = data;
-  const maxWeek = Math.max(...weeks.map(w => w.total));
+  const maxWeek = Math.max(...weeks.map(w => w.total)) || 1; // avoid NaN when empty
   const W = 326, H = 120, pad = { top: 12, right: 4, bottom: 18, left: 4 };
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
@@ -3303,7 +3314,8 @@ function SettingsScreen({ onBack, fxRate, setFxRate }) {
     if (next && !fetchedAt) fetchRate();
   };
 
-  const { txns } = useData();
+  const { txns, session } = useData();
+  const myEmail = session?.user?.email || '';
   const stats = useMemo(() => ({
     ksh: txns.filter(t => t.currency === 'KSH').length,
     usd: txns.filter(t => t.currency === 'USD').length,
@@ -3400,7 +3412,7 @@ function SettingsScreen({ onBack, fxRate, setFxRate }) {
             <Avatar person={ME} size={28} />
             <div className="settings-row-mid">
               <div className="settings-row-name">Signed in as {PEOPLE[ME].name}</div>
-              <div className="settings-row-sub">{sb && sb.auth ? (sb.auth.currentSession?.user?.email || '') : ''}</div>
+              <div className="settings-row-sub">{myEmail}</div>
             </div>
           </div>
           <button className="settings-action-row" onClick={async () => { await sb.auth.signOut(); }}>
@@ -3545,7 +3557,7 @@ function App() {
   const isFullScreen = ['add', 'detail', 'edit', 'settle', 'settings'].includes(screen.name);
 
   return (
-    <DataCtx.Provider value={{ txns, commentsByTxn, settlements, activity, loaded, refresh }}>
+    <DataCtx.Provider value={{ txns, commentsByTxn, settlements, activity, loaded, refresh, session }}>
       <div className="stage">
         <PhoneShell>
           <div className="screen-area">{renderScreen()}</div>

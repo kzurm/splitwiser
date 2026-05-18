@@ -4,12 +4,15 @@
 -- emails to git). See the comment at the bottom for the insert statement.
 
 -- ── Drop any prior policies (open or email-hardcoded) ────────
-drop policy if exists "open" on public.transactions;
-drop policy if exists "open" on public.comments;
-drop policy if exists "open" on public.settlements;
-drop policy if exists "allowlist_all" on public.transactions;
-drop policy if exists "allowlist_all" on public.comments;
-drop policy if exists "allowlist_all" on public.settlements;
+drop policy if exists "open"           on public.transactions;
+drop policy if exists "open"           on public.comments;
+drop policy if exists "open"           on public.settlements;
+drop policy if exists "allowlist_all"  on public.transactions;
+drop policy if exists "allowlist_all"  on public.comments;
+drop policy if exists "allowlist_all"  on public.settlements;
+drop policy if exists "members_only"   on public.transactions;
+drop policy if exists "members_only"   on public.comments;
+drop policy if exists "members_only"   on public.settlements;
 
 -- ── Members table — private allowlist, source of truth ───────
 create table if not exists public.members (
