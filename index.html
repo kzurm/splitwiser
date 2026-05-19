@@ -2072,14 +2072,15 @@ function LoginScreen() {
     if (!clean || verifying) return;
     setVerifying(true);
     setError(null);
-    // Some Supabase project versions send a 6-digit numeric code as `{{ .Token }}`,
-    // others send a longer hash. verifyOtp accepts either; we send whatever
-    // the user types and let the server decide.
-    const { error } = await sb.auth.verifyOtp({
-      email: email.trim().toLowerCase(),
-      token: clean,
-      type: 'email',
-    });
+    // Two valid shapes from Supabase's Magic Link template:
+    //   - Short 6-digit OTP -> verifyOtp({ email, token, type: 'email' })
+    //   - Long token hash    -> verifyOtp({ token_hash, type: 'magiclink' })
+    // Pick by shape of the input.
+    const isShortNumeric = /^\d{4,10}$/.test(clean);
+    const params = isShortNumeric
+      ? { email: email.trim().toLowerCase(), token: clean, type: 'email' }
+      : { token_hash: clean, type: 'magiclink' };
+    const { error } = await sb.auth.verifyOtp(params);
     setVerifying(false);
     if (error) setError(error.message);
     // On success, onAuthStateChange fires and the App moves past LoginScreen.
