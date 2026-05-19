@@ -2068,10 +2068,13 @@ function LoginScreen() {
 
   const verify = async (e) => {
     if (e) e.preventDefault();
-    const clean = code.replace(/\D/g, '');
-    if (clean.length < 6 || verifying) return;
+    const clean = code.trim();
+    if (!clean || verifying) return;
     setVerifying(true);
     setError(null);
+    // Some Supabase project versions send a 6-digit numeric code as `{{ .Token }}`,
+    // others send a longer hash. verifyOtp accepts either; we send whatever
+    // the user types and let the server decide.
     const { error } = await sb.auth.verifyOtp({
       email: email.trim().toLowerCase(),
       token: clean,
@@ -2118,16 +2121,14 @@ function LoginScreen() {
           <input
             className="text-field"
             type="text"
-            inputMode="numeric"
             autoComplete="one-time-code"
-            placeholder="123456"
-            maxLength={6}
+            placeholder="Paste code from email"
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            style={{ letterSpacing: '0.4em', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 18 }}
+            onChange={(e) => setCode(e.target.value)}
+            style={{ letterSpacing: '0.04em', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 14 }}
             autoFocus
           />
-          <button className="btn-primary big" type="submit" disabled={code.replace(/\D/g, '').length < 6 || verifying}>
+          <button className="btn-primary big" type="submit" disabled={!code.trim() || verifying}>
             {verifying ? 'Verifying…' : 'Verify'}
           </button>
           {error && <div style={{ fontSize: 12, color: 'var(--negative)' }}>{error}</div>}
