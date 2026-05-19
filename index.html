@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Splitwiser — homemade Splitwise for two</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#2D3554" />
+<!-- iOS Add-to-Home-Screen -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Splitwiser" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1608,6 +1617,43 @@ button { font-family: inherit; }
 .settings-footer-name { font-size: 13px; font-weight: 500; color: var(--ink-2); }
 .settings-footer-version { font-size: 11px; color: var(--ink-3); letter-spacing: 0.02em; }
 
+/* ───────────────────────── STANDALONE (PWA) ───────────────────
+   When installed as a home-screen app, drop the phone-shell decoration
+   and let the app fill the real screen. The real OS status bar takes
+   over the top; we use safe-area-inset to keep content out from under
+   the notch / dynamic island and the home indicator.
+*/
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  body { overflow: auto; background: var(--bg); }
+  .stage {
+    position: static;
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+    min-height: 100dvh;
+  }
+  .stage::before { display: none; }
+  .phone {
+    width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .phone-screen { border-radius: 0; }
+  .phone-screen::before { display: none; }   /* fake dynamic island */
+  .phone-home { display: none; }              /* fake home indicator */
+  .statusbar { display: none; }               /* real OS status bar replaces ours */
+  .screen-area { padding-top: env(safe-area-inset-top); }
+  .tabbar { padding-bottom: calc(env(safe-area-inset-bottom) + 14px); }
+  .scr { padding-bottom: calc(env(safe-area-inset-bottom) + 30px); }
+}
+/* iOS Safari pre-iOS-17 uses navigator.standalone instead of display-mode. */
+@supports (-webkit-touch-callout: none) {
+  .ios-standalone .statusbar { display: none; }
+  .ios-standalone .phone-screen::before { display: none; }
+  .ios-standalone .phone-home { display: none; }
+}
+
 /* ───────────────────────── DECORATION ────────────────────────── */
 .stage::before {
   content: '';
@@ -1641,6 +1687,11 @@ const SUPABASE_URL      = 'https://vvvuvxuxxczqdjjctdlf.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_LLXzbePSWMLuClhWu39dQw_2D_0l03j';
 
 const CONFIGURED = !SUPABASE_URL.startsWith('__') && !SUPABASE_ANON_KEY.startsWith('__');
+
+// iOS Safari pre-17 doesn't honor `display-mode: standalone` — fall back to navigator.standalone.
+if (typeof navigator !== 'undefined' && navigator.standalone === true) {
+  document.documentElement.classList.add('ios-standalone');
+}
 const sb = CONFIGURED ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const PEOPLE = {
