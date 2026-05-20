@@ -1754,7 +1754,11 @@ function parseMpesa(raw) {
 
   let merchant = null;
   const patterns = [
-    /(?:sent|paid|transferred)\s+to\s+([^.]+?)(?:\s+on|\s+for|\.\s|\s+Account)/i,
+    // "sent/paid/transferred to MERCHANT" — terminate on comma, "on", "for",
+    // "via", "Account", a period+space, or end of string. The Lipa Na M-Pesa
+    // App format adds ", <tillnumber> via M-PESA App." after the name, so the
+    // comma terminator is critical for real-world Buy Goods messages.
+    /(?:sent|paid|transferred)\s+to\s+([^,.]+?)(?=\s*(?:,|\s+on\s|\s+for\s|\s+via\s|\s+Account\s|\.\s|\.$|$))/i,
     /to\s+([A-Z][A-Z0-9 &'\-.]+?)\s+on\s+\d/,
     /You bought Ksh[\d,. ]+ of\s+(airtime)/i,
     /paybill\s+([^.]+?)(?:\s+Account|\s+on|\.)/i,
